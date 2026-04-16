@@ -116,7 +116,7 @@
         {{-- Data diambil secara dinamis dari database --}}
         @forelse($subjek as $index => $s)
         <div class="col-xl-3 col-lg-4 col-md-6 fade-up" style="animation-delay: {{ $index * 0.05 }}s;">
-            <a href="{{ route('admin.sop.index', ['subjek' => $s->id_subjek]) }}" class="text-decoration-none">
+            <a href="{{ route('admin.sop.index', ['id_subjek' => $s->id_subjek]) }}" class="text-decoration-none">
                 <div class="card h-100 main-card">
                     <div class="card-body p-4">
                         {{-- Icon Box: Warna bisa statis atau buat logika warna random --}}

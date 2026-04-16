@@ -166,16 +166,9 @@
                                     <div id="subjekResults" class="search-results-wrapper"></div>
                                 </div>
 
-                                <div class="col-md-6 search-container">
-                                    <label class="form-label text-primary">Unit Kerja (Opsional)</label>
-                                    <i class="bi bi-search search-icon-inside"></i>
-                                    <input type="text" id="unitInput" class="form-control" placeholder="Klik atau ketik nama unit..." autocomplete="off">
-                                    <input type="hidden" name="id_unit" id="selectedUnitId">
-
-                                    <div id="unitBadge" class="selected-badge">
-                                        <i class="bi bi-check-circle-fill me-1"></i> Terpilih: <span id="unitLabel" class="fw-bold"></span>
-                                    </div>
-                                    <div id="unitResults" class="search-results-wrapper"></div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-primary">Tim Kerja</label>
+                                    <input type="text" class="form-control bg-light" value="Otomatis mengikuti subjek yang dipilih" readonly>
                                 </div>
 
                                 <div class="col-md-6">
@@ -221,8 +214,6 @@
 <script>
     $(document).ready(function() {
         const subjekList = @json($subjek);
-        const unitList = @json($units);
-
         function setupLiveSearch(inputId, resultsId, dataList, valueKey, textKey, hiddenId, badgeId, labelId) {
             const $input = $(inputId);
             const $results = $(resultsId);
@@ -285,7 +276,6 @@
 
         // Jalankan Setup
         setupLiveSearch('#subjekInput', '#subjekResults', subjekList, 'id_subjek', 'nama_subjek', '#selectedSubjekId', '#subjekBadge', '#subjekLabel');
-        setupLiveSearch('#unitInput', '#unitResults', unitList, 'id_unit', 'nama_unit', '#selectedUnitId', '#unitBadge', '#unitLabel');
 
         // Validasi Form
         $('#formSop').on('submit', function(e) {

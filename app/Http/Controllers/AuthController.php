@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -15,37 +17,25 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        // 1. Validasi Input
         $request->validate([
             'username' => 'required',
             'password' => 'required',
         ]);
 
-        // 2. Cari user di tb_user yang username DAN password-nya COCOK (Plain Text)
-        $user = User::where('username', $request->username)
-                    ->where('password', $request->password) // Cek langsung teks biasa
-                    ->first();
+        $user = User::where('username', $request->username)->first();
 
-        // 3. Jika user ketemu
-        if ($user) {
-            // Login-kan user ke sistem secara manual
+        if ($user && ($user->password === $request->password || Hash::check($request->password, $user->password))) {
             Auth::login($user);
 
             $request->session()->regenerate();
 
-            // 4. Logika Redirect Berdasarkan Role
-            if ($user->role === 'Admin') {
-                return redirect()->intended('/admin/dashboard');
-            } elseif ($user->role === 'Operator') {
-                return redirect()->intended('/operator/dashboard');
-            } else {
-                return redirect()->intended('/viewer/dashboard');
-            }
+            $role = Str::lower($user->role);
+
+            return redirect()->intended('/dashboard');
         }
 
-        // 5. Jika gagal, balikkan ke login dengan pesan error
         return back()->withErrors([
-            'username' => 'Username atau Password salah (Plain Text Mode).',
+            'username' => 'Username atau password salah.',
         ])->onlyInput('username');
     }
 
@@ -54,6 +44,6 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect('/login');
+        return redirect('/');
     }
 }

@@ -3,17 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Subjek extends Model
 {
-    use HasFactory;
-
     protected $table = 'tb_subjek';
     protected $primaryKey = 'id_subjek';
-    public $timestamps = false; // Karena kamu pakai kolom manual created_date
+    public $timestamps = false;
 
     protected $fillable = [
+        'id_timkerja',
         'nama_subjek',
         'deskripsi',
         'status',
@@ -23,26 +21,18 @@ class Subjek extends Model
         'modified_date'
     ];
 
-    /**
-     * Boot function untuk mengisi created_date otomatis saat tambah data
-     */
-    protected static function boot()
+    public function timkerja()
     {
-        parent::boot();
-        static::creating(function ($model) {
-            if (!$model->created_date) {
-                $model->created_date = now();
-            }
-        });
+        return $this->belongsTo(Timkerja::class, 'id_timkerja', 'id_timkerja');
     }
 
-    public function units()
+    public function sop()
     {
-        return $this->hasMany(Unit::class, 'id_subjek', 'id_subjek');
+        return $this->hasMany(Sop::class, 'id_subjek', 'id_subjek');
     }
 
     public function sops()
     {
-        return $this->hasMany(Sop::class, 'id_subjek', 'id_subjek');
+        return $this->sop();
     }
 }

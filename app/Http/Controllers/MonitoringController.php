@@ -11,11 +11,10 @@ class MonitoringController extends Controller
 {
     public function index()
     {
-        // Eager loading sop dan user
         $monitorings = Monitoring::with(['sop', 'user'])->orderBy('id_monitoring', 'desc')->get();
-        $sops = Sop::all(); // Untuk dropdown saat tambah monitoring
+        $sops = Sop::where('status_active', 1)->orderBy('nama_sop')->get();
 
-        return view('pages.admin.monitoring.index', compact('monitorings', 'sops'));
+        return view('pages.monitoring.index', compact('monitorings', 'sops'));
     }
 
     public function store(Request $request)
@@ -42,5 +41,25 @@ class MonitoringController extends Controller
     {
         Monitoring::findOrFail($id)->delete();
         return redirect()->back()->with('success', 'Data Monitoring berhasil dihapus!');
+    }
+
+    public function create()
+    {
+        return redirect()->route('admin.monitoring.index');
+    }
+
+    public function show($id)
+    {
+        return redirect()->route('admin.monitoring.index');
+    }
+
+    public function edit($id)
+    {
+        return redirect()->route('admin.monitoring.index');
+    }
+
+    public function update(Request $request, $id)
+    {
+        return redirect()->route('admin.monitoring.index');
     }
 }

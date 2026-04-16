@@ -46,18 +46,13 @@
                         </select>
                     </div>
 
-                   <div class="col-md-6 mb-3">
-    <label class="form-label fw-bold small text-muted">Unit Kerja</label>
-    {{-- Hapus atribut 'required' di bawah ini agar bisa langsung simpan --}}
-    <select name="id_unit" class="form-select" style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
-        <option value="">-- Pilih Unit Kerja (Opsional) --</option>
-        @foreach($units as $u)
-            <option value="{{ $u->id_unit }}" {{ $sop->id_unit == $u->id_unit ? 'selected' : '' }}>
-                {{ $u->nama_unit }}
-            </option>
-        @endforeach
-        </select>
-        </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold small text-muted">Tim Kerja</label>
+                        <input type="text" class="form-control bg-light"
+                               value="{{ $sop->subjek->timkerja->nama_timkerja ?? 'Mengikuti subjek' }}"
+                               style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;"
+                               readonly>
+                    </div>
 
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-bold small text-muted">Tahun Terbit</label>
@@ -68,9 +63,11 @@
 
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-bold small text-muted">Status Dokumen</label>
-                        <select name="status_active" class="form-select" style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
-                            <option value="1" {{ $sop->status_active == 1 ? 'selected' : '' }}>Aktif</option>
-                            <option value="0" {{ $sop->status_active == 0 ? 'selected' : '' }}>Review / Non-Aktif</option>
+                        <select name="status" class="form-select" style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
+                            <option value="aktif" {{ $sop->status == 'aktif' ? 'selected' : '' }}>Aktif</option>
+                            <option value="revisi" {{ $sop->status == 'revisi' ? 'selected' : '' }}>Revisi</option>
+                            <option value="kadaluarsa" {{ $sop->status == 'kadaluarsa' ? 'selected' : '' }}>Kadaluarsa</option>
+                            <option value="nonaktif" {{ $sop->status == 'nonaktif' ? 'selected' : '' }}>Nonaktif</option>
                         </select>
                     </div>
 

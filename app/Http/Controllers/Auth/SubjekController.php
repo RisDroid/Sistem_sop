@@ -57,7 +57,7 @@ class SubjekController extends Controller
             'nama_subjek'  => $request->nama_subjek,
             'deskripsi'    => $request->deskripsi,
             'status'       => 'aktif',
-            'created_by'   => Auth::id(),
+            'created_by'   => Auth::user()->name ?? 'system',
             'created_date' => now(),
         ]);
 
@@ -83,7 +83,7 @@ class SubjekController extends Controller
             'nama_subjek'   => $request->nama_subjek,
             'deskripsi'     => $request->deskripsi,
             'status'        => $request->status,
-            'modified_by'   => Auth::id(),
+            'modified_by'   => Auth::user()->name ?? 'system',
             'modified_date' => now(),
         ]);
 
@@ -110,20 +110,5 @@ class SubjekController extends Controller
         $data->delete();
 
         return back()->with('success', 'Subjek berhasil dihapus!');
-    }
-
-    public function create()
-    {
-        return redirect()->route('admin.subjek.index');
-    }
-
-    public function show($id)
-    {
-        return redirect()->route('admin.subjek.index');
-    }
-
-    public function edit($id)
-    {
-        return redirect()->route('admin.subjek.index');
     }
 }

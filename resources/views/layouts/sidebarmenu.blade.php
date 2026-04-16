@@ -141,6 +141,7 @@
     </style>
 </head>
 <body>
+    @php($role = strtolower(Auth::user()->role ?? 'admin'))
 
     <div id="wrapper">
         <nav id="sidebar">
@@ -160,33 +161,35 @@
                 </li>
 
                 <div class="menu-label">Repositori</div>
-                <li class="{{ request()->routeIs('admin.sop.*') ? 'active' : '' }}">
-                    <a href="{{ route('admin.sop.index') }}">
+                <li class="{{ request()->routeIs($role . '.sop.*') ? 'active' : '' }}">
+                    <a href="{{ route($role . '.sop.index') }}">
                         <i class="bi bi-file-earmark-text"></i> <span>Data SOP</span>
                     </a>
                 </li>
-                <li class="{{ request()->routeIs('admin.monitoring.*') ? 'active' : '' }}">
-                    <a href="{{ route('admin.monitoring.index') }}">
+                <li class="{{ request()->routeIs($role . '.monitoring.*') ? 'active' : '' }}">
+                    <a href="{{ route($role . '.monitoring.index') }}">
                         <i class="bi bi-graph-up"></i> <span>Monitoring</span>
                     </a>
                 </li>
 
-                <div class="menu-label">Sistem</div>
-                <li class="{{ request()->routeIs('admin.user.*') ? 'active' : '' }}">
-                    <a href="{{ route('admin.user.index') }}">
-                        <i class="bi bi-people"></i> <span>Manajemen User</span>
-                    </a>
-                </li>
-                <li class="{{ request()->routeIs('admin.unit.*') ? 'active' : '' }}">
-                    <a href="{{ route('admin.unit.index') }}">
-                        <i class="bi bi-building"></i> <span>Manajemen Unit</span>
-                    </a>
-                </li>
-                <li class="{{ request()->routeIs('admin.subjek.*') ? 'active' : '' }}">
-                    <a href="{{ route('admin.subjek.index') }}">
-                        <i class="bi bi-tag"></i> <span>Manajemen Subjek</span>
-                    </a>
-                </li>
+                @if($role === 'admin')
+                    <div class="menu-label">Sistem</div>
+                    <li class="{{ request()->routeIs('admin.user.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.user.index') }}">
+                            <i class="bi bi-people"></i> <span>Manajemen User</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->routeIs('admin.timkerja.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.timkerja.index') }}">
+                            <i class="bi bi-building"></i> <span>Manajemen Tim Kerja</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->routeIs('admin.subjek.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.subjek.index') }}">
+                            <i class="bi bi-tag"></i> <span>Manajemen Subjek</span>
+                        </a>
+                    </li>
+                @endif
             </ul>
 
             <div class="p-3 border-top">
@@ -257,6 +260,7 @@
             const sidebar = $('#sidebar');
             const btnToggle = $('#btn-toggle-custom');
 
+            // Sidebar Toggle Logic
             btnToggle.on('click', function() {
                 if($(window).width() > 992) {
                     sidebar.toggleClass('minimized');
@@ -265,13 +269,22 @@
                 }
             });
 
-            // Menutup sidebar otomatis di mobile jika klik di luar
+            // Close sidebar mobile when click outside
             $(document).on('click', function (e) {
                 if ($(window).width() <= 992) {
                     if (!sidebar.is(e.target) && sidebar.has(e.target).length === 0 && !btnToggle.is(e.target) && btnToggle.has(e.target).length === 0) {
                         sidebar.removeClass('show-mobile');
                     }
                 }
+            });
+
+            // Force Re-initialize Modals if data-attributes fail
+            // Kadang di Laravel modal butuh trigger manual jika load vi
+            $(document).on('click', '[data-bs-toggle="modal"]', function(e) {
+                e.preventDefault();
+                const target = $(this).data('bs-target');
+                const myModal = new bootstrap.Modal(document.querySelector(target));
+                myModal.show();
             });
         });
     </script>

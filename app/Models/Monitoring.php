@@ -25,12 +25,12 @@ class Monitoring extends Model
     // Relasi ke SOP
     public function sop()
     {
-        return $this->belongsTo(Sop::class, 'id_sop');
+        return $this->belongsTo(Sop::class, 'id_sop', 'id_sop');
     }
 
     // Relasi ke User
     public function user()
     {
-        return $this->belongsTo(User::class, 'id_user');
+        return $this->belongsTo(User::class, 'id_user', 'id_user');
     }
 }

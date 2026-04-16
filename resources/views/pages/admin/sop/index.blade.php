@@ -101,6 +101,19 @@
         justify-content: space-between;
         margin-bottom: 8px;
     }
+
+    /* FIX BACKDROP FREEZE */
+    body.modal-open {
+        overflow: hidden !important;
+        padding-right: 0 !important;
+    }
+
+    /* Checkbox Styling */
+    .form-check-input-custom {
+        width: 1.2rem;
+        height: 1.2rem;
+        cursor: pointer;
+    }
 </style>
 
 <div class="container-fluid py-4">
@@ -119,21 +132,25 @@
                 <i class="bi bi-plus-lg me-2"></i> Tambah SOP Baru
             </a>
 
-            <button type="button" class="btn btn-warning px-4 py-2 fw-bold shadow-sm text-white" style="border-radius: 12px; background: #f59e0b; border: none;" data-bs-toggle="modal" data-bs-target="#modalRevisiBaru">
-                <i class="bi bi-arrow-repeat me-2"></i> Revisi SOP
-            </button>
+            <a href="{{ route('admin.sop.aksescepat') }}" class="btn btn-warning px-4 py-2 fw-bold shadow-sm text-white" style="border-radius: 12px; background: #f59e0b; border: none;">
+                <i class="bi bi-lightning-charge me-2"></i> Akses Cepat
+            </a>
         </div>
     </div>
 
     <div class="card main-card">
         <div class="p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <form action="{{ route('admin.sop.index') }}" id="searchForm" method="GET" class="search-box d-flex align-items-center">
-                <i class="bi bi-search text-muted me-2"></i>
-                <input type="text" name="search" id="searchInput" value="{{ request('search') }}" class="border-0 bg-transparent shadow-none" placeholder="Cari dokumen..." style="outline: none; width: 250px;">
-                @if(request('search') || request('show_history'))
-                    <a href="{{ route('admin.sop.index') }}" class="text-muted ms-2"><i class="bi bi-x-circle-fill"></i></a>
-                @endif
-            </form>
+            <div class="d-flex align-items-center gap-3">
+                <div class="search-box d-flex align-items-center">
+                    <i class="bi bi-search text-muted me-2"></i>
+                    <input type="text" id="searchTable" class="border-0 bg-transparent shadow-none" placeholder="Cari subjek, nama, nomor, atau tim..." style="outline: none; width: 300px;">
+                </div>
+
+                {{-- TOMBOL HAPUS MASAL (Muncul Otomatis via JS) --}}
+                <button type="button" id="btnBulkDelete" class="btn btn-danger px-3 py-2 fw-bold shadow-sm animate__animated animate__fadeIn" style="display: none; border-radius: 12px;">
+                    <i class="bi bi-trash3 me-2"></i> Hapus Terpilih (<span id="checkCount">0</span>)
+                </button>
+            </div>
 
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-outline-secondary border-0 fw-bold small d-flex align-items-center" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modalFilter">
@@ -147,73 +164,97 @@
 
         <div class="table-container">
             <div class="table-responsive">
-                <table class="table custom-table">
-                    <thead>
-                        <tr>
-                            <th>No</th>
-                            <th>Nama Subjek</th>
-                            <th>Nama SOP</th>
-                            <th>Nomor SOP</th>
-                            <th class="text-center">Revisi</th>
-                            <th class="text-center">Status</th>
-                            <th>Tim Kerja</th>
-                            <th class="text-end">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($allSop as $index => $item)
-                        <tr>
-                            <td class="fw-bold text-muted">{{ $allSop->firstItem() + $index }}</td>
-                            <td>
-                                <span class="badge-subjek">{{ $item->subjek->nama_subjek ?? 'Tanpa Subjek' }}</span>
-                                <div class="text-muted mt-1" style="font-size: 0.75rem;">Tahun: {{ date('Y', strtotime($item->tahun)) }}</div>
-                            </td>
-                            <td>
-                                <div class="fw-bold">
-                                    <a href="{{ route('admin.sop.index', ['show_history' => $item->nama_sop]) }}" class="nama-sop-link" title="Lihat Riwayat Versi">
-                                        {{ $item->nama_sop }}
-                                    </a>
-                                </div>
-                            </td>
-                            <td><span class="badge bg-primary-subtle text-primary px-3 py-2" style="border-radius: 8px;">{{ $item->nomor_sop }}</span></td>
-                            <td class="text-center">
-                                <div class="badge bg-light text-dark border fw-bold px-3 py-2" style="border-radius: 8px;">
-                                    {{ ($item->revisi_ke && $item->revisi_ke !== '-') ? 'Revisi ke - '.$item->revisi_ke : '-' }}
-                                </div>
-                            </td>
-                            <td class="text-center">
-                                @if($item->status_active == 1)
-                                    <span class="badge bg-success px-3 py-2" style="border-radius: 8px;">Aktif</span>
-                                @else
-                                    <span class="badge bg-secondary px-3 py-2" style="border-radius: 8px;">Non-Aktif</span>
-                                @endif
-                            </td>
-                            <td><span class="small fw-bold text-secondary">{{ $item->unit->nama_unit ?? 'Internal' }}</span></td>
-                            <td class="text-end">
-                                <div class="d-flex justify-content-end gap-1">
-                                    @if($item->status_active == 1)
-                                    <button type="button" class="btn-action text-warning btn-revisi"
-                                            data-id="{{ $item->id_sop }}"
-                                            data-nama="{{ $item->nama_sop }}"
-                                            data-revisi="{{ $item->revisi_ke }}"
-                                            title="Revisi SOP Ini">
-                                        <i class="bi bi-arrow-repeat"></i>
-                                    </button>
+                {{-- Form untuk Bulk Delete --}}
+                <form id="formBulkDelete" action="{{ route('admin.sop.bulkDelete') }}" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <table class="table custom-table" id="sopTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" class="form-check-input form-check-input-custom" id="selectAll">
+                                </th>
+                                <th>No</th>
+                                <th>Nama Subjek</th>
+                                <th>Nama SOP</th>
+                                <th>Nomor SOP</th>
+                                <th class="text-center">Revisi</th>
+                                <th class="text-center">Status</th>
+                                <th>Tim Kerja</th>
+                                <th class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($allSop as $index => $item)
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="ids[]" value="{{ $item->id_sop }}" class="form-check-input form-check-input-custom sop-checkbox">
+                                </td>
+                                <td class="fw-bold text-muted">{{ $allSop->firstItem() + $index }}</td>
+                                <td class="target-subjek">
+                                    @php($subjekItem = $item->subjek instanceof \Illuminate\Support\Collection ? $item->subjek->first() : $item->subjek)
+                                    <span class="badge-subjek">{{ $subjekItem->nama_subjek ?? 'Tanpa Subjek' }}</span>
+                                    <div class="text-muted mt-1" style="font-size: 0.75rem;">Tahun: {{ date('Y', strtotime($item->tahun)) }}</div>
+                                </td>
+                                <td class="target-nama">
+                                    <div class="fw-bold">
+                                        <a href="{{ route('admin.sop.index', ['show_history' => $item->nama_sop]) }}" class="nama-sop-link" title="Lihat Riwayat Versi">
+                                            {{ $item->nama_sop }}
+                                        </a>
+                                    </div>
+                                </td>
+                                <td class="target-nomor"><span class="badge bg-primary-subtle text-primary px-3 py-2" style="border-radius: 8px;">{{ $item->nomor_sop }}</span></td>
+
+                                <td class="text-center">
+                                    <div class="badge bg-light text-dark border fw-bold px-3 py-2" style="border-radius: 8px;">
+                                        {{ (int) $item->revisi_ke === 0 ? 'Versi Awal' : 'Revisi ke-' . $item->revisi_ke }}
+                                    </div>
+                                </td>
+
+                                <td class="text-center">
+                                    @if($item->status === 'aktif')
+                                        <span class="badge bg-success px-3 py-2" style="border-radius: 8px;">Aktif</span>
+                                    @elseif($item->status === 'kadaluarsa')
+                                        <span class="badge bg-danger px-3 py-2" style="border-radius: 8px;">Kadaluarsa</span>
+                                    @elseif(blank($item->status))
+                                        <span class="badge bg-light text-dark border px-3 py-2" style="border-radius: 8px;">-</span>
+                                    @else
+                                        <span class="badge bg-secondary px-3 py-2" style="border-radius: 8px;">Nonaktif</span>
                                     @endif
-                                    <a href="{{ asset('storage/' . $item->link_sop) }}" target="_blank" class="btn-action text-primary" title="Lihat PDF"><i class="bi bi-eye"></i></a>
-                                    <a href="{{ route('admin.sop.edit', $item->id_sop) }}" class="btn-action text-warning" title="Edit Data"><i class="bi bi-pencil-square"></i></a>
-                                    <form action="{{ route('admin.sop.destroy', $item->id_sop) }}" method="POST" class="form-delete d-inline">
-                                        @csrf @method('DELETE')
-                                        <button type="button" class="btn-action text-danger btn-delete" title="Hapus"><i class="bi bi-trash3"></i></button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="8" class="text-center py-5"><h6 class="text-muted">Data tidak ditemukan!</h6></td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                                </td>
+
+                                <td class="target-tim"><span class="small fw-bold text-secondary">{{ $subjekItem->timkerja->nama_timkerja ?? 'Internal' }}</span></td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-1">
+                                        @if($item->status === 'aktif')
+                                        <button type="button" class="btn-action text-warning btn-revisi"
+                                                data-id="{{ $item->id_sop }}"
+                                                data-nama="{{ $item->nama_sop }}"
+                                                data-revisi="{{ $item->revisi_ke }}"
+                                                title="Revisi SOP Ini">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </button>
+                                        @endif
+                                       {{-- Menggunakan route view.pdf agar terhindar dari error 403 --}}
+{{-- Tombol Lihat PDF Baru --}}
+<a href="{{ route('view.pdf', basename($item->link_sop)) }}"
+   target="_blank"
+   class="btn-action text-danger border-danger-subtle"
+   title="Buka PDF"
+   style="background-color: #fff5f5;">
+    <i class="bi bi-file-earmark-pdf-fill"></i>
+</a>
+                                        <a href="{{ route('admin.sop.edit', $item->id_sop) }}" class="btn-action text-warning" title="Edit Data"><i class="bi bi-pencil-square"></i></a>
+                                        <button type="button" class="btn-action text-danger btn-delete-single" data-id="{{ $item->id_sop }}" title="Hapus"><i class="bi bi-trash3"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr id="noData"><td colspan="9" class="text-center py-5"><h6 class="text-muted">Data tidak ditemukan!</h6></td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </form>
             </div>
             <div class="pagination-wrapper d-flex justify-content-between align-items-center">
                 <div class="text-muted small fw-bold">Menampilkan {{ $allSop->count() }} data pada halaman ini</div>
@@ -223,7 +264,7 @@
     </div>
 </div>
 
-{{-- MODAL REVISI CEPAT (DARI TOMBOL TABEL) --}}
+{{-- MODAL REVISI CEPAT --}}
 <div class="modal fade" id="modalRevisi" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content shadow-lg">
@@ -281,9 +322,7 @@
 
                         <div class="col-12 mb-3">
                             <label class="form-label small fw-bold">SOP Terkait (Bisa pilih lebih dari 1)</label>
-
                             <div id="selected-sop-list" class="mb-2"></div>
-
                             <div class="input-group">
                                 <select id="sop-selector" class="form-select" style="border-radius: 10px 0 0 10px;">
                                     <option value="">-- Pilih SOP Terkait --</option>
@@ -295,7 +334,6 @@
                                     <i class="bi bi-plus-circle"></i>
                                 </button>
                             </div>
-                            <small class="text-muted mt-1 d-block">*Pilih SOP dari dropdown lalu klik tombol (+) untuk menambahkan.</small>
                         </div>
 
                         <div class="col-12 mb-3">
@@ -310,7 +348,7 @@
                 </div>
                 <div class="modal-footer border-0 pb-4 px-4">
                     <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal" style="border-radius: 12px;">Batal</button>
-                    <button type="submit" class="btn btn-warning fw-bold px-4 text-white" style="border-radius: 12px; background: #f59e0b;">Proses Revisi</button>
+                    <button type="submit" class="btn btn-warning fw-bold px-4 text-white" style="border-radius: 12px; background: #f59e0b;">Simpan</button>
                 </div>
             </form>
         </div>
@@ -341,7 +379,7 @@
                         <select name="id_unit" class="form-select">
                             <option value="">Semua Tim Kerja</option>
                             @foreach($units as $u)
-                                <option value="{{ $u->id_unit }}" {{ request('id_unit') == $u->id_unit ? 'selected' : '' }}>{{ $u->nama_unit }}</option>
+                                <option value="{{ $u->id_timkerja }}" {{ request('id_unit') == $u->id_timkerja ? 'selected' : '' }}>{{ $u->nama_timkerja }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -361,9 +399,34 @@
 
 <script>
     $(document).ready(function() {
-        // Search Auto Submit
-        $('#searchInput').on('input', function() {
-            if ($(this).val() === '') { $('#searchForm').submit(); }
+
+        // --- FITUR LIVE SEARCH (MODIFIKASI UTAMA) ---
+        $("#searchTable").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            var visibleRows = 0;
+
+            $("#sopTable tbody tr").filter(function() {
+                // Mencari di kolom Subjek, Nama SOP, Nomor SOP, dan Tim Kerja
+                var match = $(this).text().toLowerCase().indexOf(value) > -1;
+                $(this).toggle(match);
+                if(match) visibleRows++;
+            });
+
+            // Handle jika data tidak ditemukan saat filter
+            if (visibleRows === 0 && value !== "") {
+                if ($("#noDataSearch").length === 0) {
+                    $("#sopTable tbody").append('<tr id="noDataSearch"><td colspan="9" class="text-center py-5"><h6 class="text-muted">Pencarian tidak ditemukan!</h6></td></tr>');
+                }
+            } else {
+                $("#noDataSearch").remove();
+            }
+        });
+
+        // FIX: Menghapus backdrop secara paksa saat modal tertutup
+        $('.modal').on('hidden.bs.modal', function () {
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open');
+            $('body').css('padding-right', '');
         });
 
         // Trigger Modal Revisi Cepat
@@ -377,6 +440,46 @@
             $('#modalRevisi').modal('show');
         });
 
+        // --- LOGIKA BULK DELETE (CEKLIS) ---
+        const $selectAll = $('#selectAll');
+        const $btnBulkDelete = $('#btnBulkDelete');
+        const $checkCount = $('#checkCount');
+
+        function updateBulkButton() {
+            const count = $('.sop-checkbox:checked').length;
+            $checkCount.text(count);
+            if (count > 0) {
+                $btnBulkDelete.fadeIn();
+            } else {
+                $btnBulkDelete.fadeOut();
+            }
+        }
+
+        $selectAll.on('change', function() {
+            $('.sop-checkbox:visible').prop('checked', this.checked);
+            updateBulkButton();
+        });
+
+        $(document).on('change', '.sop-checkbox', function() {
+            updateBulkButton();
+        });
+
+        $btnBulkDelete.on('click', function() {
+            Swal.fire({
+                title: 'Hapus Masal?',
+                text: `Anda akan menghapus ${$('.sop-checkbox:checked').length} data sekaligus.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Ya, Hapus Semua',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $('#formBulkDelete').submit();
+                }
+            });
+        });
+
         // LOGIKA DINAMIS SOP TERKAIT
         $('#add-sop-btn').on('click', function() {
             let selector = $('#sop-selector');
@@ -388,18 +491,16 @@
                 return;
             }
 
-            // Cek apakah sudah ada di list
             let existing = false;
             $("input[name='sop_terkait[]']").each(function() {
                 if ($(this).val() === id) existing = true;
             });
 
             if (existing) {
-                Swal.fire({ icon: 'error', title: 'Sudah Ada', text: 'SOP ini sudah ditambahkan ke dalam daftar terkait.' });
+                Swal.fire({ icon: 'error', title: 'Sudah Ada', text: 'SOP ini sudah ditambahkan.' });
                 return;
             }
 
-            // Template Row Baru (Bukan dropdown, tapi teks locked)
             let newRow = `
                 <div class="locked-sop-row animate__animated animate__fadeIn">
                     <input type="hidden" name="sop_terkait[]" value="${id}">
@@ -407,38 +508,38 @@
                         <i class="bi bi-file-earmark-check text-primary me-2"></i>
                         <span>${name}</span>
                     </div>
-                    <button type="button" class="btn btn-link text-danger p-0 remove-sop-item" title="Hapus">
+                    <button type="button" class="btn btn-link text-danger p-0 remove-sop-item">
                         <i class="bi bi-x-circle-fill"></i>
                     </button>
                 </div>
             `;
 
             $('#selected-sop-list').append(newRow);
-            selector.val('').trigger('change'); // Reset selector
+            selector.val('');
         });
 
-        // Hapus Item SOP Terkait
         $(document).on('click', '.remove-sop-item', function() {
-            $(this).closest('.locked-sop-row').addClass('animate__fadeOut').on('animationend', function() {
-                $(this).remove();
-            });
+            $(this).closest('.locked-sop-row').fadeOut(300, function() { $(this).remove(); });
         });
 
-        // Delete Confirmation
-        $('.btn-delete').on('click', function(e) {
-            let form = $(this).closest('.form-delete');
+        // Delete Confirmation (Single Delete)
+        $('.btn-delete-single').on('click', function() {
+            const id = $(this).data('id');
             Swal.fire({
                 title: 'Hapus Dokumen?',
-                text: "Data SOP akan dihapus permanen dari server BPS.",
+                text: "Data SOP akan dihapus permanen.",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
-                cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Ya, Hapus',
-                cancelButtonText: 'Batal',
                 reverseButtons: true
             }).then((result) => {
-                if (result.isConfirmed) { form.submit(); }
+                if (result.isConfirmed) {
+                    const form = $(`<form action="{{ url('admin/sop') }}/${id}" method="POST">
+                        @csrf @method('DELETE')
+                    </form>`).appendTo('body');
+                    form.submit();
+                }
             });
         });
 
