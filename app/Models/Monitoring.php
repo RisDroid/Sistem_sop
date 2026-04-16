@@ -11,9 +11,12 @@ class Monitoring extends Model
 
     protected $table = 'tb_monitoring';
     protected $primaryKey = 'id_monitoring';
+    public $incrementing = false;
+    protected $keyType = 'int';
     public $timestamps = false;
 
     protected $fillable = [
+        'id_monitoring',
         'id_sop',
         'tanggal',
         'id_user',
@@ -21,6 +24,15 @@ class Monitoring extends Model
         'hasil_monitoring',
         'catatan'
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Monitoring $monitoring) {
+            if (empty($monitoring->id_monitoring)) {
+                $monitoring->id_monitoring = ((int) static::max('id_monitoring')) + 1;
+            }
+        });
+    }
 
     // Relasi ke SOP
     public function sop()

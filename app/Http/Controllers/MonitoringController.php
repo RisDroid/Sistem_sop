@@ -12,7 +12,7 @@ class MonitoringController extends Controller
     public function index()
     {
         $monitorings = Monitoring::with(['sop', 'user'])->orderBy('id_monitoring', 'desc')->get();
-        $sops = Sop::where('status_active', 1)->orderBy('nama_sop')->get();
+        $sops = Sop::where('status', 'aktif')->orderBy('nama_sop')->get();
 
         return view('pages.monitoring.index', compact('monitorings', 'sops'));
     }
