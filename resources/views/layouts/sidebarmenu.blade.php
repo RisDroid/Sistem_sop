@@ -94,6 +94,15 @@
         .nav-menu li a i { font-size: 1.2rem; margin-right: 12px; }
         .nav-menu li a:hover { background: #f1f5f9; color: var(--bps-blue); }
         .nav-menu li.active > a { background: var(--bps-blue); color: #ffffff; }
+        .role-pill {
+            margin: 14px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(15, 23, 42, 0.05);
+        }
+        .role-pill .small {
+            color: #475569;
+        }
 
         /* --- CONTENT AREA --- */
         #content {
@@ -142,6 +151,11 @@
 </head>
 <body>
     @php($role = strtolower(Auth::user()->role ?? 'admin'))
+    @php($roleTheme = [
+        'admin' => ['accent' => '#0d47a1', 'soft' => '#dbeafe', 'label' => 'Kontrol Penuh Sistem'],
+        'operator' => ['accent' => '#0f766e', 'soft' => '#ccfbf1', 'label' => 'Pusat Operasional Tim'],
+        'viewer' => ['accent' => '#7c3aed', 'soft' => '#ede9fe', 'label' => 'Mode Lihat Dokumen'],
+    ][$role] ?? ['accent' => '#0d47a1', 'soft' => '#dbeafe', 'label' => 'Kontrol Sistem'])
 
     <div id="wrapper">
         <nav id="sidebar">
@@ -153,6 +167,11 @@
                 </div>
             </div>
 
+            <div class="role-pill" style="background: {{ $roleTheme['soft'] }}; color: {{ $roleTheme['accent'] }};">
+                <div class="fw-bold text-uppercase small">{{ strtoupper($role) }}</div>
+                <div class="small">{{ $roleTheme['label'] }}</div>
+            </div>
+
             <ul class="list-unstyled nav-menu">
                 <li class="{{ request()->is('*/dashboard') ? 'active' : '' }}">
                     <a href="{{ route('dashboard') }}">
@@ -160,17 +179,24 @@
                     </a>
                 </li>
 
-                <div class="menu-label">Repositori</div>
-                <li class="{{ request()->routeIs($role . '.sop.*') ? 'active' : '' }}">
-                    <a href="{{ route($role . '.sop.index') }}">
-                        <i class="bi bi-file-earmark-text"></i> <span>Data SOP</span>
-                    </a>
-                </li>
-                <li class="{{ request()->routeIs($role . '.monitoring.*') ? 'active' : '' }}">
-                    <a href="{{ route($role . '.monitoring.index') }}">
-                        <i class="bi bi-graph-up"></i> <span>Monitoring</span>
-                    </a>
-                </li>
+                @if($role !== 'viewer')
+                    <div class="menu-label">Repositori</div>
+                    <li class="{{ request()->routeIs($role . '.sop.*') ? 'active' : '' }}">
+                        <a href="{{ route($role . '.sop.index') }}">
+                            <i class="bi bi-file-earmark-text"></i> <span>Data SOP</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->routeIs($role . '.monitoring.*') ? 'active' : '' }}">
+                        <a href="{{ route($role . '.monitoring.index') }}">
+                            <i class="bi bi-graph-up"></i> <span>Monitoring</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->routeIs($role . '.evaluasi.*') ? 'active' : '' }}">
+                        <a href="{{ route($role . '.evaluasi.index') }}">
+                            <i class="bi bi-ui-checks-grid"></i> <span>Evaluasi</span>
+                        </a>
+                    </li>
+                @endif
 
                 @if($role === 'admin')
                     <div class="menu-label">Sistem</div>
@@ -217,7 +243,7 @@
                         <div class="user-info dropdown-toggle" style="cursor:pointer" data-bs-toggle="dropdown" aria-expanded="false">
                             <div class="text-end d-none d-sm-block">
                                 <div class="fw-bold small text-dark">{{ Auth::user()->nama }}</div>
-                                <div class="text-muted" style="font-size: 10px;">{{ strtoupper(Auth::user()->role) }}</div>
+                                <div class="text-muted" style="font-size: 10px;">{{ strtoupper(Auth::user()->role) }} • {{ $roleTheme['label'] }}</div>
                             </div>
                             <div class="avatar-box shadow-sm">
                                 {{ strtoupper(substr(Auth::user()->nama, 0, 1)) }}
@@ -278,14 +304,6 @@
                 }
             });
 
-            // Force Re-initialize Modals if data-attributes fail
-            // Kadang di Laravel modal butuh trigger manual jika load vi
-            $(document).on('click', '[data-bs-toggle="modal"]', function(e) {
-                e.preventDefault();
-                const target = $(this).data('bs-target');
-                const myModal = new bootstrap.Modal(document.querySelector(target));
-                myModal.show();
-            });
         });
     </script>
 </body>

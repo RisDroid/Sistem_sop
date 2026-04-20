@@ -3,6 +3,12 @@
 @section('content')
 
 <style>
+.app-modal {
+    display:none;
+}
+.app-modal.is-open {
+    display:block;
+}
 .table-card{
     background:#fff;
     border-radius:16px;
@@ -73,9 +79,10 @@
             </p>
         </div>
 
-        <button class="btn btn-primary px-4 fw-bold"
-                data-bs-toggle="modal"
-                data-bs-target="#modalTambah">
+        <button type="button"
+                class="btn btn-primary px-4 fw-bold"
+                data-app-modal-open="modalTambah"
+                onclick="return openAppModal('modalTambah')">
 
             <i class="bi bi-plus-lg me-2"></i>
             Tambah User
@@ -190,9 +197,10 @@
                             <div class="d-flex justify-content-center gap-2">
 
                                 {{-- EDIT --}}
-                                <button class="btn-icon"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#modalEdit{{ $u->id_user }}">
+                                <button type="button"
+                                        class="btn-icon"
+                                        data-app-modal-open="modalEdit{{ $u->id_user }}"
+                                        onclick="return openAppModal('modalEdit{{ $u->id_user }}')">
                                     <i class="bi bi-pencil"></i>
                                 </button>
 
@@ -218,9 +226,10 @@
                     </tr>
 
                     {{-- MODAL EDIT --}}
-                    <div class="modal fade"
+                    <div class="modal fade app-modal"
                          id="modalEdit{{ $u->id_user }}"
-                         tabindex="-1">
+                         tabindex="-1"
+                         data-app-modal>
 
                         <div class="modal-dialog modal-dialog-centered">
 
@@ -234,7 +243,7 @@
 
                                     <button type="button"
                                             class="btn-close"
-                                            data-bs-dismiss="modal">
+                                            data-app-modal-close>
                                     </button>
 
                                 </div>
@@ -383,7 +392,7 @@
 </div>
 
 {{-- MODAL TAMBAH --}}
-<div class="modal fade" id="modalTambah" tabindex="-1">
+<div class="modal fade app-modal" id="modalTambah" tabindex="-1" data-app-modal>
 
     <div class="modal-dialog modal-dialog-centered">
 
@@ -397,7 +406,7 @@
 
                 <button type="button"
                         class="btn-close"
-                        data-bs-dismiss="modal">
+                        data-app-modal-close>
                 </button>
 
             </div>
@@ -464,9 +473,9 @@
                                     data-role-select
                                     class="form-select bg-light border-0 py-2">
 
-                                <option value="admin" {{ old('role', 'admin') == 'admin' ? 'selected' : '' }}>Admin</option>
+                                <option value="admin" {{ old('role', 'viewer') == 'admin' ? 'selected' : '' }}>Admin</option>
                                 <option value="operator" {{ old('role') == 'operator' ? 'selected' : '' }}>Operator</option>
-                                <option value="viewer" {{ old('role') == 'viewer' ? 'selected' : '' }}>Viewer</option>
+                                <option value="viewer" {{ old('role', 'viewer') == 'viewer' ? 'selected' : '' }}>Viewer</option>
 
                             </select>
 
@@ -519,11 +528,101 @@
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+let appModalBackdrop = null;
+
+function ensureAppModalBackdrop() {
+    if (!appModalBackdrop) {
+        appModalBackdrop = document.createElement('div');
+        appModalBackdrop.className = 'modal-backdrop fade';
+        appModalBackdrop.addEventListener('click', function () {
+            document.querySelectorAll('[data-app-modal].is-open').forEach(function (modal) {
+                closeAppModal(modal.id);
+            });
+        });
+    }
+
+    if (!document.body.contains(appModalBackdrop)) {
+        document.body.appendChild(appModalBackdrop);
+    }
+}
+
+function openAppModal(modalId) {
+    const modalElement = document.getElementById(modalId);
+
+    if (!modalElement) {
+        return false;
+    }
+
+    ensureAppModalBackdrop();
+    modalElement.style.display = 'block';
+    modalElement.classList.add('show', 'is-open');
+    modalElement.removeAttribute('aria-hidden');
+    modalElement.setAttribute('aria-modal', 'true');
+    document.body.classList.add('modal-open');
+
+    setTimeout(function () {
+        if (appModalBackdrop) {
+            appModalBackdrop.classList.add('show');
+        }
+    }, 10);
+
+    return false;
+}
+
+function closeAppModal(modalId) {
+    const modalElement = document.getElementById(modalId);
+
+    if (!modalElement) {
+        return false;
+    }
+
+    modalElement.classList.remove('show', 'is-open');
+    modalElement.style.display = 'none';
+    modalElement.setAttribute('aria-hidden', 'true');
+    modalElement.removeAttribute('aria-modal');
+
+    if (!document.querySelector('[data-app-modal].is-open')) {
+        document.body.classList.remove('modal-open');
+
+        if (appModalBackdrop) {
+            appModalBackdrop.classList.remove('show');
+            appModalBackdrop.remove();
+        }
+    }
+
+    return false;
+}
+
 document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-app-modal-close]').forEach(button => {
+        button.addEventListener('click', function () {
+            const modal = this.closest('[data-app-modal]');
+
+            if (modal) {
+                closeAppModal(modal.id);
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-app-modal]').forEach(modal => {
+        modal.addEventListener('click', function (event) {
+            if (event.target === modal) {
+                closeAppModal(modal.id);
+            }
+        });
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            document.querySelectorAll('[data-app-modal].is-open').forEach(function (modal) {
+                closeAppModal(modal.id);
+            });
+        }
+    });
+
     @if($errors->any())
         Swal.fire({
             title: 'Data user belum valid',
@@ -533,8 +632,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         const modalTambah = document.getElementById('modalTambah');
-        if (modalTambah && window.bootstrap) {
-            bootstrap.Modal.getOrCreateInstance(modalTambah).show();
+        if (modalTambah) {
+            openAppModal('modalTambah');
         }
     @endif
 
@@ -549,26 +648,32 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const isAdmin = roleSelect.value === 'admin';
+            const isViewer = roleSelect.value === 'viewer';
+            const needsTimkerja = roleSelect.value === 'operator';
 
-            timkerjaSelect.disabled = isAdmin;
-            timkerjaSelect.required = !isAdmin;
+            timkerjaSelect.disabled = !needsTimkerja;
+            timkerjaSelect.required = needsTimkerja;
 
-            if (isAdmin) {
+            if (isAdmin || isViewer) {
                 timkerjaSelect.value = '';
                 if (timkerjaHelp) {
-                    timkerjaHelp.textContent = 'Role admin tidak perlu memilih tim kerja.';
+                    timkerjaHelp.textContent = isAdmin
+                        ? 'Role admin tidak perlu memilih tim kerja.'
+                        : 'Role viewer tidak perlu memilih tim kerja.';
                 }
 
                 if (showPopup) {
                     Swal.fire({
-                        title: 'Role admin dipilih',
-                        text: 'Tim kerja tidak perlu diisi untuk user admin.',
+                        title: isAdmin ? 'Role admin dipilih' : 'Role viewer dipilih',
+                        text: isAdmin
+                            ? 'Tim kerja tidak perlu diisi untuk user admin.'
+                            : 'Tim kerja tidak perlu diisi untuk user viewer.',
                         icon: 'info',
                         confirmButtonText: 'OK'
                     });
                 }
             } else if (timkerjaHelp) {
-                timkerjaHelp.textContent = 'Tim kerja wajib dipilih untuk operator dan viewer.';
+                timkerjaHelp.textContent = 'Tim kerja wajib dipilih untuk operator.';
             }
         };
 
@@ -615,12 +720,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            if (role !== 'admin' && !timkerja) {
+            if (role === 'operator' && !timkerja) {
                 event.preventDefault();
 
                 Swal.fire({
                     title: 'Tim kerja belum dipilih',
-                    text: 'Untuk role operator atau viewer, tim kerja wajib diisi.',
+                    text: 'Untuk role operator, tim kerja wajib diisi.',
                     icon: 'warning',
                     confirmButtonText: 'OK'
                 });

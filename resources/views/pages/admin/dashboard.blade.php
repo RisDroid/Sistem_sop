@@ -2,6 +2,24 @@
 
 @section('content')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+@php($dashboardRole = $role ?? strtolower(Auth::user()->role ?? 'admin'))
+@php($dashboardTheme = [
+    'admin' => ['accent' => '#0d47a1', 'badge' => 'Kontrol penuh', 'summary' => 'Pusat kendali untuk seluruh unit kerja.', 'quickLinks' => [
+        ['label' => 'Manajemen User', 'route' => 'admin.user.index', 'icon' => 'bi-person-gear', 'tone' => 'text-info'],
+        ['label' => 'Monitoring', 'route' => 'admin.monitoring.index', 'icon' => 'bi-bar-chart-steps', 'tone' => 'text-success'],
+        ['label' => 'Manajemen Subjek', 'route' => 'admin.subjek.index', 'icon' => 'bi-tags', 'tone' => 'text-secondary'],
+    ]],
+    'operator' => ['accent' => '#0f766e', 'badge' => 'Operasional', 'summary' => 'Fokus pada input SOP, monitoring, dan evaluasi tim kerja Anda.', 'quickLinks' => [
+        ['label' => 'Tambah SOP', 'route' => 'operator.sop.create', 'icon' => 'bi-plus-circle-fill', 'tone' => 'text-primary'],
+        ['label' => 'Monitoring', 'route' => 'operator.monitoring.create', 'icon' => 'bi-clipboard2-plus-fill', 'tone' => 'text-success'],
+        ['label' => 'Evaluasi', 'route' => 'operator.evaluasi.create', 'icon' => 'bi-ui-checks-grid', 'tone' => 'text-warning'],
+    ]],
+    'viewer' => ['accent' => '#7c3aed', 'badge' => 'Read only', 'summary' => 'Viewer dapat membuka data yang diizinkan tanpa menu sidebar repositori.', 'quickLinks' => [
+        ['label' => 'Lihat SOP', 'route' => 'viewer.sop.aksescepat', 'icon' => 'bi-folder2-open', 'tone' => 'text-primary'],
+        ['label' => 'Monitoring', 'route' => 'viewer.monitoring.index', 'icon' => 'bi-graph-up', 'tone' => 'text-success'],
+        ['label' => 'Evaluasi', 'route' => 'viewer.evaluasi.index', 'icon' => 'bi-ui-checks-grid', 'tone' => 'text-warning'],
+    ]],
+][$dashboardRole])
 
 <style>
     /* Animasi masuk */
@@ -13,12 +31,12 @@
 
     /* Top Bar Luxury Style */
     .top-header {
-        background: #fff;
+        background: linear-gradient(135deg, {{ $dashboardTheme['accent'] }} 0%, #111827 100%);
         border-radius: 20px;
         padding: 20px 30px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        box-shadow: 0 16px 32px rgba(15,23,42,0.14);
         margin-bottom: 25px;
-        border: 1px solid #f1f4f9;
+        border: none;
     }
 
     /* Card Stats dengan Gradasi & Soft Shadow */
@@ -72,17 +90,30 @@
 
     /* Digital Clock Header */
     .time-badge {
-        background: #f1f4f9;
-        color: #1e3c72;
+        background: rgba(255,255,255,0.12);
+        color: #ffffff;
         padding: 8px 18px;
         border-radius: 12px;
         font-weight: 700;
         font-family: 'Courier New', Courier, monospace;
         font-size: 1.1rem;
+        border: 1px solid rgba(255,255,255,0.18);
     }
 
-    .user-greeting h4 { color: #1e3c72; font-weight: 800; margin: 0; }
-    .user-greeting p { color: #8898aa; font-size: 0.9rem; margin: 0; }
+    .user-greeting h4 { color: #ffffff; font-weight: 800; margin: 0; }
+    .user-greeting p { color: rgba(255,255,255,0.82); font-size: 0.9rem; margin: 0; }
+    .role-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.14);
+        border: 1px solid rgba(255,255,255,0.18);
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-top: 10px;
+    }
 </style>
 
 <div class="container-fluid fade-in-up py-4">
@@ -95,12 +126,13 @@
             </div>
             <div>
                 <h4>Selamat Datang, {{ Auth::user()->nama }}! 👋</h4>
-                <p>Status Login: <span class="badge bg-primary bg-opacity-10 text-primary fw-bold">{{ strtoupper(Auth::user()->role) }}</span></p>
+                <p>{{ $dashboardTheme['summary'] }}</p>
+                <div class="role-chip">{{ strtoupper(Auth::user()->role) }} • {{ $dashboardTheme['badge'] }}</div>
             </div>
         </div>
         <div class="text-end d-none d-md-block">
             <div class="time-badge shadow-sm" id="realtime-clock">00:00:00</div>
-            <div class="small fw-bold text-muted mt-1">{{ date('l, d F Y') }}</div>
+            <div class="small fw-bold text-white-50 mt-1">{{ $scopeLabel ?? date('l, d F Y') }}</div>
         </div>
     </div>
 
@@ -115,56 +147,42 @@
         <div class="col-md-3">
             <div class="card card-stat bg-gradient-green shadow">
                 <i class="bi bi-shield-check stat-icon"></i>
-                <div class="fw-bold opacity-75 small">SOP AKTIF (AMAN)</div>
+                <div class="fw-bold opacity-75 small">SOP AKTIF</div>
                 <h1 class="fw-extrabold mb-0">{{ $aman ?? 0 }}</h1>
             </div>
             
         </div>
         <div class="col-md-3">
             <div class="card card-stat bg-gradient-orange shadow">
-                <i class="bi bi-arrow-repeat stat-icon"></i>
-                <div class="fw-bold opacity-75 small">PERLU REVIEW</div>
-                <h1 class="fw-extrabold mb-0">{{ $review ?? 0 }}</h1>
+                <i class="bi bi-clipboard2-data stat-icon"></i>
+                <div class="fw-bold opacity-75 small">MONITORING</div>
+                <h1 class="fw-extrabold mb-0">{{ $totalMonitoring ?? 0 }}</h1>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card card-stat bg-gradient-red shadow">
-                <i class="bi bi-exclamation-octagon stat-icon"></i>
-                <div class="fw-bold opacity-75 small">EXPIRED (KRITIS)</div>
-                <h1 class="fw-extrabold mb-0">{{ $kritis ?? 0 }}</h1>
+                <i class="bi bi-ui-checks-grid stat-icon"></i>
+                <div class="fw-bold opacity-75 small">EVALUASI</div>
+                <h1 class="fw-extrabold mb-0">{{ $totalEvaluasi ?? 0 }}</h1>
             </div>
         </div>
     </div>
 
-    <div class="mb-4">
-        <h5 class="fw-bold text-dark mb-3"><i class="bi bi-lightning-fill text-warning me-2"></i>Akses Cepat Monitoring</h5>
-        <div class="row g-3">
-            <div class="col-6 col-md-3">
-                <a href="{{ route('admin.sop.aksescepat') }}" class="nav-box">
-                    <i class="bi bi-folder2-open text-primary fs-2 d-block mb-2"></i>
-                    <span class="fw-bold text-dark small">Data SOP</span>
-                </a>
-            </div>
-            <div class="col-6 col-md-3">
-                <a href="{{ route('admin.user.index') }}" class="nav-box">
-                    <i class="bi bi-person-gear text-info fs-2 d-block mb-2"></i>
-                    <span class="fw-bold text-dark small">Manajemen User</span>
-                </a>
-            </div>
-            <div class="col-6 col-md-3">
-                <a href="{{ route('admin.monitoring.index') }}" class="nav-box">
-                    <i class="bi bi-bar-chart-steps text-success fs-2 d-block mb-2"></i>
-                    <span class="fw-bold text-dark small">Laporan Tahunan</span>
-                </a>
-            </div>
-            <div class="col-6 col-md-3">
-                <a href="{{ route('admin.subjek.index') }}" class="nav-box">
-                    <i class="bi bi-tags text-secondary fs-2 d-block mb-2"></i>
-                    <span class="fw-bold text-dark small">Manajemen Subjek</span>
-                </a>
+    @if(!empty($dashboardTheme['quickLinks']))
+        <div class="mb-4">
+            <h5 class="fw-bold text-dark mb-3"><i class="bi bi-lightning-fill text-warning me-2"></i>Akses Sesuai Role</h5>
+            <div class="row g-3">
+                @foreach($dashboardTheme['quickLinks'] as $item)
+                    <div class="col-6 col-md-3">
+                        <a href="{{ route($item['route']) }}" class="nav-box">
+                            <i class="bi {{ $item['icon'] }} {{ $item['tone'] }} fs-2 d-block mb-2"></i>
+                            <span class="fw-bold text-dark small">{{ $item['label'] }}</span>
+                        </a>
+                    </div>
+                @endforeach
             </div>
         </div>
-    </div>
+    @endif
 
     <div class="row g-4 mt-2">
         <div class="col-lg-8">
@@ -180,14 +198,18 @@
         </div>
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm p-4" style="border-radius: 24px;">
-                <h6 class="fw-bold text-dark mb-4">Kesehatan Berkas</h6>
-                <div style="height: 220px;">
-                    <canvas id="statusChart"></canvas>
-                </div>
-                <div class="mt-4 pt-3 border-top">
+                    <h6 class="fw-bold text-dark mb-4">Kesehatan Berkas</h6>
+                    <div style="height: 220px;">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                    <div class="mt-4 pt-3 border-top">
+                    <div class="d-flex justify-content-between small text-muted mb-2">
+                        <span>SOP revisi:</span>
+                        <span class="fw-bold">{{ $review ?? 0 }}</span>
+                    </div>
                     <div class="d-flex justify-content-between small text-muted">
-                        <span>Server Status:</span>
-                        <span class="text-success fw-bold">ONLINE</span>
+                        <span>SOP nonaktif/kadaluarsa:</span>
+                        <span class="fw-bold">{{ $kritis ?? 0 }}</span>
                     </div>
                 </div>
             </div>
@@ -266,7 +288,7 @@
     new Chart(document.getElementById('statusChart'), {
         type: 'doughnut',
         data: {
-            labels: ['Aman', 'Review', 'Expired'],
+            labels: ['Aktif', 'Revisi', 'Nonaktif/Kadaluarsa'],
             datasets: [{
                 data: [{{ $aman ?? 0 }}, {{ $review ?? 0 }}, {{ $kritis ?? 0 }}],
                 backgroundColor: ['#11998e', '#f2994a', '#eb3349'],

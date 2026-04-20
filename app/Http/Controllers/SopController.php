@@ -9,16 +9,114 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\Rule;
 
 class SopController extends Controller
 {
+    private const SOP_FILE_MAX_KB = 51200;
+
+    private function routePrefix(): string
+    {
+        return strtolower((string) Auth::user()?->role ?: 'admin');
+    }
+
+    private function currentTeamId(): ?int
+    {
+        return Auth::user()?->id_timkerja;
+    }
+
+    private function isOperator(): bool
+    {
+        return $this->routePrefix() === 'operator';
+    }
+
+    private function applyOperatorScope($query)
+    {
+        if (!$this->isOperator()) {
+            return $query;
+        }
+
+        $teamId = $this->currentTeamId();
+
+        if (!$teamId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('subjek', function ($subQuery) use ($teamId) {
+            $subQuery->where('id_timkerja', $teamId);
+        });
+    }
+
+    private function visibleSubjekIds(): array
+    {
+        $query = Subjek::query();
+
+        if ($this->isOperator()) {
+            $teamId = $this->currentTeamId();
+
+            if (!$teamId) {
+                return [];
+            }
+
+            $query->where('id_timkerja', $teamId);
+        }
+
+        return $query->pluck('id_subjek')->map(fn ($id) => (int) $id)->all();
+    }
+
+    private function visibleSubjekQuery()
+    {
+        $query = Subjek::query();
+
+        if ($this->isOperator()) {
+            $teamId = $this->currentTeamId();
+
+            if (!$teamId) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            $query->where('id_timkerja', $teamId);
+        }
+
+        return $query;
+    }
+
+    private function visibleUnitsQuery()
+    {
+        $query = Timkerja::query()->orderBy('nama_timkerja');
+
+        if ($this->isOperator()) {
+            $teamId = $this->currentTeamId();
+
+            if (!$teamId) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            $query->where('id_timkerja', $teamId);
+        }
+
+        return $query;
+    }
+
+    private function findVisibleSopOrFail(int $id): Sop
+    {
+        $query = Sop::with('subjek.timkerja')->where('id_sop', $id);
+        $this->applyOperatorScope($query);
+
+        return $query->firstOrFail();
+    }
+
     /**
      * 1. TAMPILKAN DAFTAR SOP (INDEX)
      * Dimodifikasi agar default hanya menampilkan yang aktif.
      */
     public function index(Request $request)
     {
-        $query = Sop::with(['subjek.timkerja']);
+        $query = Sop::with(['subjek.timkerja'])
+            ->withCount(['monitorings', 'evaluasis']);
+
+        $this->applyOperatorScope($query);
 
         // Fitur Pencarian
         if ($request->has('search') && $request->search != '') {
@@ -31,6 +129,12 @@ class SopController extends Controller
         // Filter berdasarkan Subjek
         if ($request->has('id_subjek') && $request->id_subjek != '') {
             $query->where('id_subjek', $request->id_subjek);
+        }
+
+        if ($request->has('nama_subjek') && $request->nama_subjek != '') {
+            $query->whereHas('subjek', function ($q) use ($request) {
+                $q->where('nama_subjek', $request->nama_subjek);
+            });
         }
 
         if ($request->has('id_unit') && $request->id_unit != '') {
@@ -52,22 +156,94 @@ class SopController extends Controller
         }
 
         $allSop = $query->orderBy('id_sop', 'desc')->paginate(10);
-        $subjek = Subjek::all();
-        $units = Timkerja::orderBy('nama_timkerja')->get();
+        $subjek = $this->visibleSubjekQuery()->get();
+        $units = $this->visibleUnitsQuery()->get();
 
         return view('pages.admin.sop.index', compact('allSop', 'subjek', 'units'));
     }
 
     public function aksesCepat()
     {
-        $subjek = Subjek::where('status', 'aktif')->withCount('sop')->get();
-        return view('pages.admin.sop.akses_cepat', compact('subjek'));
+        $role = strtolower((string) Auth::user()?->role ?: 'admin');
+        $teamId = Auth::user()?->id_timkerja;
+        $teamScopedRole = $role === 'operator';
+
+        $subjekQuery = Subjek::query()
+            ->where('status', 'aktif')
+            ->with('timkerja');
+
+        if ($teamScopedRole) {
+            if ($teamId) {
+                $subjekQuery->where('id_timkerja', $teamId);
+            } else {
+                $subjekQuery->whereRaw('1 = 0');
+            }
+        }
+
+        $subjek = $subjekQuery->get()
+            ->groupBy(function (Subjek $item) {
+                return mb_strtolower(trim((string) $item->nama_subjek));
+            })
+            ->map(function ($items) {
+                /** @var \Illuminate\Support\Collection $items */
+                $first = $items->first();
+
+                return (object) [
+                    'nama_subjek' => $first->nama_subjek,
+                    'deskripsi' => $items->pluck('deskripsi')->filter()->first(),
+                    'visible_sop_count' => Sop::whereIn('id_subjek', $items->pluck('id_subjek'))
+                        ->where('status', 'aktif')
+                        ->count(),
+                ];
+            })
+            ->sortBy('nama_subjek', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        $summary = [
+            'total_subjek' => $subjek->count(),
+            'total_sop' => $subjek->sum('visible_sop_count'),
+        ];
+
+        return view('pages.admin.sop.akses_cepat', compact('subjek', 'summary', 'role'));
+    }
+
+    public function history(int $id): JsonResponse
+    {
+        $sop = $this->findVisibleSopOrFail($id);
+
+        $history = Sop::with('subjek.timkerja')
+            ->where('nama_sop', $sop->nama_sop)
+            ->orderBy('revisi_ke', 'desc')
+            ->orderBy('id_sop', 'desc')
+            ->get()
+            ->map(function (Sop $item) {
+                return [
+                    'id_sop' => $item->id_sop,
+                    'nama_sop' => $item->nama_sop,
+                    'nomor_sop' => $item->nomor_sop,
+                    'revisi_ke' => (int) $item->revisi_ke,
+                    'revisi_label' => (int) $item->revisi_ke === 0 ? 'Versi Awal' : 'Revisi ke-' . $item->revisi_ke,
+                    'status' => $item->status,
+                    'status_label' => blank($item->status) ? '-' : ucfirst($item->status),
+                    'tahun' => $item->tahun,
+                    'subjek' => $item->subjek?->nama_subjek ?? 'Tanpa Subjek',
+                    'timkerja' => $item->subjek?->timkerja?->nama_timkerja ?? 'Internal',
+                    'keterangan' => $item->keterangan,
+                    'view_url' => $item->link_sop ? route('view.pdf', basename($item->link_sop)) : null,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'latest' => $history->first(),
+            'history' => $history,
+        ]);
     }
 
     public function create()
     {
-        $subjek = Subjek::all();
-        $units = Timkerja::all();
+        $subjek = $this->visibleSubjekQuery()->get();
+        $units = $this->visibleUnitsQuery()->get();
         return view('pages.admin.sop.create', compact('subjek', 'units'));
     }
 
@@ -76,8 +252,8 @@ class SopController extends Controller
         $request->validate([
             'nama_sop'  => 'required|string|max:255',
             'nomor_sop' => 'required|string|max:100',
-            'link_sop'  => 'required|mimes:pdf|max:10240',
-            'id_subjek' => 'required|exists:tb_subjek,id_subjek',
+            'link_sop'  => 'required|mimes:pdf|max:' . self::SOP_FILE_MAX_KB,
+            'id_subjek' => ['required', Rule::in($this->visibleSubjekIds())],
             'tahun'     => 'required|numeric',
         ]);
 
@@ -95,26 +271,27 @@ class SopController extends Controller
             'created_by'    => Auth::id(),
         ]);
 
-        return redirect()->route('admin.sop.index')->with('success', 'Data SOP telah berhasil ditambahkan.');
+        return redirect()->route($this->routePrefix() . '.sop.index')->with('success', 'Data SOP telah berhasil ditambahkan.');
     }
 
     public function edit($id)
     {
-        $sop = Sop::findOrFail($id);
-        $subjek = Subjek::all();
-        $units = Timkerja::all();
+        $sop = $this->findVisibleSopOrFail((int) $id);
+        $subjek = $this->visibleSubjekQuery()->get();
+        $units = $this->visibleUnitsQuery()->get();
         return view('pages.admin.sop.edit', compact('sop', 'subjek', 'units'));
     }
 
     public function update(Request $request, $id)
     {
-        $sop = Sop::findOrFail($id);
+        $sop = $this->findVisibleSopOrFail((int) $id);
 
         $request->validate([
             'nama_sop'  => 'required|string|max:255',
             'nomor_sop' => 'required|string|max:100',
-            'id_subjek' => 'required|exists:tb_subjek,id_subjek',
+            'id_subjek' => ['required', Rule::in($this->visibleSubjekIds())],
             'tahun'     => 'required|numeric',
+            'link_sop'  => 'nullable|mimes:pdf|max:' . self::SOP_FILE_MAX_KB,
         ]);
 
         if ($request->hasFile('link_sop')) {
@@ -135,7 +312,7 @@ class SopController extends Controller
             'modified_by'   => Auth::id(),
         ]);
 
-        return redirect()->route('admin.sop.index')->with('success', 'Perubahan data SOP telah berhasil diperbarui.');
+        return redirect()->route($this->routePrefix() . '.sop.index')->with('success', 'Perubahan data SOP telah berhasil diperbarui.');
     }
 
     /**
@@ -145,12 +322,12 @@ class SopController extends Controller
     {
         $request->validate([
             'id_sop_induk'       => 'required|exists:tb_sop,id_sop',
-            'link_sop'           => 'required|mimes:pdf|max:10240',
+            'link_sop'           => 'required|mimes:pdf|max:' . self::SOP_FILE_MAX_KB,
             'keterangan_revisi'  => 'required|string',
         ]);
 
         DB::transaction(function () use ($request) {
-            $sopInduk = Sop::findOrFail($request->id_sop_induk);
+            $sopInduk = $this->findVisibleSopOrFail((int) $request->id_sop_induk);
 
             $lastRevisi = Sop::where('nama_sop', $sopInduk->nama_sop)
                 ->orderBy('revisi_ke', 'desc')
@@ -185,7 +362,7 @@ class SopController extends Controller
             ]);
         });
 
-        return redirect()->route('admin.sop.index')
+        return redirect()->route($this->routePrefix() . '.sop.index')
             ->with('success', 'Revisi SOP berhasil disimpan.');
     }
 
@@ -222,7 +399,7 @@ class SopController extends Controller
 
     public function destroy($id)
     {
-        $sop = Sop::findOrFail($id);
+        $sop = $this->findVisibleSopOrFail((int) $id);
         $namaSop = $sop->nama_sop;
         $statusHapus = $sop->status;
 
@@ -233,7 +410,7 @@ class SopController extends Controller
 
         $this->normalizeRevisionStatuses($namaSop);
 
-        return redirect()->route('admin.sop.index')->with('success', 'Data SOP telah berhasil dihapus.');
+        return redirect()->route($this->routePrefix() . '.sop.index')->with('success', 'Data SOP telah berhasil dihapus.');
     }
 
     public function getUnits($id_subjek)
@@ -278,7 +455,7 @@ class SopController extends Controller
             }
 
             // Redirect kembali ke index agar angka dashboard & tabel terupdate
-            return redirect()->route('admin.sop.index')->with('success', 'Data terpilih berhasil dihapus.');
+            return redirect()->route($this->routePrefix() . '.sop.index')->with('success', 'Data terpilih berhasil dihapus.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
@@ -286,6 +463,6 @@ class SopController extends Controller
 
     public function show($id)
     {
-        return redirect()->route('admin.sop.index');
+        return redirect()->route($this->routePrefix() . '.sop.index');
     }
 }

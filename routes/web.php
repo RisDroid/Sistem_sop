@@ -14,6 +14,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SopController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\MonitoringController;
+use App\Http\Controllers\EvaluasiController;
 
 // PERBAIKAN DI SINI: Sesuaikan dengan lokasi folder Admin
 use App\Http\Controllers\Admin\HomeController;
@@ -73,6 +74,7 @@ Route::middleware(['auth'])->group(function () {
         // Management User & Monitoring
         Route::resource('user', UserController::class);
         Route::resource('monitoring', MonitoringController::class);
+        Route::resource('evaluasi', EvaluasiController::class);
 
         // Menampilkan halaman formulir tambah user
         Route::get('/user-tambah', [UserController::class, 'create'])->name('user.tambah');
@@ -81,6 +83,7 @@ Route::middleware(['auth'])->group(function () {
 
         // --- MANAJEMEN SOP ---
         Route::get('/sop/akses-cepat', [SopController::class, 'aksesCepat'])->name('sop.aksescepat');
+        Route::get('/sop/{id}/history', [SopController::class, 'history'])->name('sop.history');
         Route::post('/sop/revisi', [SopController::class, 'storeRevisi'])->name('sop.revisi');
 
         // Rute untuk Bulk Delete (Hapus Banyak)
@@ -97,10 +100,26 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('operator')->name('operator.')->group(function () {
         Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
         Route::get('/sop/akses-cepat', [SopController::class, 'aksesCepat'])->name('sop.aksescepat');
+        Route::get('/sop/{id}/history', [SopController::class, 'history'])->name('sop.history');
+        Route::post('/sop/revisi', [SopController::class, 'storeRevisi'])->name('sop.revisi');
         Route::resource('sop', SopController::class);
         Route::get('/monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
+        Route::get('/monitoring/create', [MonitoringController::class, 'create'])->name('monitoring.create');
         Route::post('/monitoring', [MonitoringController::class, 'store'])->name('monitoring.store');
         Route::delete('/monitoring/{monitoring}', [MonitoringController::class, 'destroy'])->name('monitoring.destroy');
+        Route::get('/evaluasi', [EvaluasiController::class, 'index'])->name('evaluasi.index');
+        Route::get('/evaluasi/create', [EvaluasiController::class, 'create'])->name('evaluasi.create');
+        Route::post('/evaluasi', [EvaluasiController::class, 'store'])->name('evaluasi.store');
+        Route::delete('/evaluasi/{evaluasi}', [EvaluasiController::class, 'destroy'])->name('evaluasi.destroy');
+    });
+
+    Route::prefix('viewer')->name('viewer.')->group(function () {
+        Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
+        Route::get('/sop', [SopController::class, 'index'])->name('sop.index');
+        Route::get('/sop/akses-cepat', [SopController::class, 'aksesCepat'])->name('sop.aksescepat');
+        Route::get('/sop/{id}/history', [SopController::class, 'history'])->name('sop.history');
+        Route::get('/monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
+        Route::get('/evaluasi', [EvaluasiController::class, 'index'])->name('evaluasi.index');
     });
 
     // --- PROFILE MANAGEMENT ---

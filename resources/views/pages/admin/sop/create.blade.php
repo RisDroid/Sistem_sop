@@ -1,6 +1,7 @@
 @extends('layouts.sidebarmenu')
 
 @section('content')
+@php($prefix = strtolower(Auth::user()->role) === 'admin' ? 'admin' : 'operator')
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
@@ -58,72 +59,16 @@
         box-shadow: 0 0 0 0.25rem rgba(13, 71, 161, 0.1);
     }
 
-    .search-container {
-        position: relative;
+    .form-select {
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        padding: 12px 15px;
+        transition: all 0.2s;
     }
 
-    .search-results-wrapper {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        margin-top: 8px;
-        z-index: 1050;
-        max-height: 280px;
-        overflow-y: auto;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-        display: none;
-        animation: fadeInDown 0.2s ease-out;
-    }
-
-    @keyframes fadeInDown {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .result-item {
-        padding: 12px 18px;
-        cursor: pointer;
-        border-bottom: 1px solid #f1f5f9;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .result-item:hover {
-        background-color: #f0f7ff;
-    }
-
-    .result-item .item-title {
-        font-weight: 600;
-        color: #1e293b;
-        font-size: 0.95rem;
-    }
-
-    .result-item .item-sub {
-        font-size: 0.75rem;
-        color: #94a3b8;
-        margin-top: 2px;
-    }
-
-    .selected-badge {
-        display: none;
-        background: #ecfdf5;
-        color: #059669;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        margin-top: 8px;
-        border: 1px solid #a7f3d0;
-    }
-
-    .search-icon-inside {
-        position: absolute;
-        right: 15px;
-        top: 42px;
-        color: #94a3b8;
+    .form-select:focus {
+        border-color: #0d47a1;
+        box-shadow: 0 0 0 0.25rem rgba(13, 71, 161, 0.1);
     }
 </style>
 
@@ -143,7 +88,13 @@
                     </div>
 
                     <div class="card-body p-4 p-lg-5">
-                        <form action="{{ route('admin.sop.store') }}" method="POST" enctype="multipart/form-data" id="formSop">
+                        @if($errors->any())
+                            <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4">
+                                {{ $errors->first() }}
+                            </div>
+                        @endif
+
+                        <form action="{{ route($prefix . '.sop.store') }}" method="POST" enctype="multipart/form-data" id="formSop">
                             @csrf
 
                             <div class="row g-4">
@@ -154,21 +105,23 @@
                                            placeholder="Contoh: SOP Pelayanan Statistik" required>
                                 </div>
 
-                                <div class="col-md-6 search-container">
+                                <div class="col-md-6">
                                     <label class="form-label text-primary">Subjek</label>
-                                    <i class="bi bi-search search-icon-inside"></i>
-                                    <input type="text" id="subjekInput" class="form-control" placeholder="Klik atau ketik nama subjek..." autocomplete="off">
-                                    <input type="hidden" name="id_subjek" id="selectedSubjekId" required>
-
-                                    <div id="subjekBadge" class="selected-badge">
-                                        <i class="bi bi-check-circle-fill me-1"></i> Terpilih: <span id="subjekLabel" class="fw-bold"></span>
-                                    </div>
-                                    <div id="subjekResults" class="search-results-wrapper"></div>
+                                    <select name="id_subjek" id="selectedSubjekId" class="form-select" required>
+                                        <option value="">Pilih subjek</option>
+                                        @foreach($subjek as $item)
+                                            <option value="{{ $item->id_subjek }}"
+                                                    data-timkerja="{{ $item->timkerja->nama_timkerja ?? 'Internal' }}"
+                                                    {{ old('id_subjek') == $item->id_subjek ? 'selected' : '' }}>
+                                                {{ $item->nama_subjek }}
+                                            </option>
+                                        @endforeach
+                                    </select>
                                 </div>
 
                                 <div class="col-md-6">
                                     <label class="form-label text-primary">Tim Kerja</label>
-                                    <input type="text" class="form-control bg-light" value="Otomatis mengikuti subjek yang dipilih" readonly>
+                                    <input type="text" class="form-control bg-light" id="timkerjaDisplay" value="Pilih subjek terlebih dahulu" readonly>
                                 </div>
 
                                 <div class="col-md-6">
@@ -195,7 +148,7 @@
                             <hr class="my-4 text-secondary opacity-25">
 
                             <div class="d-flex justify-content-end gap-2">
-                                <a href="{{ route('admin.sop.index') }}" class="btn btn-outline-secondary px-4 border-0">Batal</a>
+                                <a href="{{ route($prefix . '.sop.index') }}" class="btn btn-outline-secondary px-4 border-0">Batal</a>
                                 <button type="submit" class="btn btn-primary btn-save shadow-sm">
                                     <i class="bi bi-cloud-arrow-up me-2"></i>Simpan Data SOP
                                 </button>
@@ -213,82 +166,39 @@
 
 <script>
     $(document).ready(function() {
-        const subjekList = @json($subjek);
-        function setupLiveSearch(inputId, resultsId, dataList, valueKey, textKey, hiddenId, badgeId, labelId) {
-            const $input = $(inputId);
-            const $results = $(resultsId);
+        const subjekSelect = $('#selectedSubjekId');
+        const timkerjaDisplay = $('#timkerjaDisplay');
 
-            // Fungsi untuk merender daftar
-            const renderResults = (query = '') => {
-                $results.empty();
+        function syncTimkerja() {
+            const selected = subjekSelect.find('option:selected');
+            const timkerja = selected.data('timkerja');
 
-                let filtered = dataList.filter((item, index, self) =>
-                    item[textKey].toLowerCase().includes(query.toLowerCase()) &&
-                    index === self.findIndex((t) => t[textKey] === item[textKey])
-                );
-
-                if (filtered.length > 0) {
-                    filtered.forEach(item => {
-                        $results.append(`
-                            <div class="result-item" data-id="${item[valueKey]}" data-name="${item[textKey]}">
-                                <span class="item-title">${item[textKey]}</span>
-                                <span class="item-sub">Database ID: ${item[valueKey]}</span>
-                            </div>
-                        `);
-                    });
-                    $results.show();
-                } else {
-                    $results.append('<div class="p-3 text-muted small text-center">Data tidak ditemukan</div>').show();
-                }
-            };
-
-            // Munculkan semua data saat kolom diklik (fokus)
-            $input.on('focus', function() {
-                renderResults($(this).val());
-            });
-
-            // Filter data saat mengetik
-            $input.on('input', function() {
-                renderResults($(this).val());
-            });
-
-            // Aksi saat item dipilih
-            $results.on('click', '.result-item', function() {
-                const id = $(this).data('id');
-                const name = $(this).data('name');
-
-                if(id) {
-                    $(hiddenId).val(id);
-                    $input.val(name);
-                    $(labelId).text(name);
-                    $(badgeId).fadeIn();
-                    $results.hide();
-                }
-            });
-
-            // Tutup jika klik di luar area input
-            $(document).on('click', function(e) {
-                if (!$(e.target).closest('.search-container').length) {
-                    $results.hide();
-                }
-            });
+            timkerjaDisplay.val(timkerja || 'Pilih subjek terlebih dahulu');
         }
 
-        // Jalankan Setup
-        setupLiveSearch('#subjekInput', '#subjekResults', subjekList, 'id_subjek', 'nama_subjek', '#selectedSubjekId', '#subjekBadge', '#subjekLabel');
+        subjekSelect.on('change', syncTimkerja);
+        syncTimkerja();
 
-        // Validasi Form
         $('#formSop').on('submit', function(e) {
-            if (!$('#selectedSubjekId').val()) {
+            if (!subjekSelect.val()) {
                 e.preventDefault();
                 Swal.fire({
                     icon: 'warning',
                     title: 'Pilihan Diperlukan',
-                    text: 'Mohon klik dan pilih salah satu Subjek dari daftar yang tersedia.',
+                    text: 'Mohon pilih salah satu subjek terlebih dahulu.',
                     confirmButtonColor: '#0d47a1'
                 });
             }
         });
+
+        @if($errors->any())
+            Swal.fire({
+                icon: 'error',
+                title: 'SOP belum berhasil disimpan',
+                text: @json($errors->first()),
+                confirmButtonColor: '#0d47a1'
+            });
+        @endif
     });
 </script>
 @endsection

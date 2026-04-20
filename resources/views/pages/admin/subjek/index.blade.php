@@ -2,8 +2,14 @@
 
 @section('content')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
+<style>
+.app-modal {
+    display:none;
+}
+.app-modal.is-open {
+    display:block;
+}
+</style>
 <div class="container-fluid px-4 py-4">
 
     {{-- HEADER --}}
@@ -17,8 +23,8 @@
 
         <button type="button"
                 class="btn btn-primary rounded-3 shadow-sm px-4 py-2 fw-bold d-flex align-items-center"
-                data-bs-toggle="modal"
-                data-bs-target="#modalTambahSubjek">
+                data-app-modal-open="modalTambahSubjek"
+                onclick="return openAppModal('modalTambahSubjek')">
             <i class="bi bi-plus-circle me-2"></i>
             Tambah Subjek
         </button>
@@ -134,8 +140,8 @@
                                     {{-- EDIT --}}
                                     <button type="button"
                                             class="btn btn-sm btn-light border"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#modalEdit{{ $s->id_subjek }}">
+                                            data-app-modal-open="modalEdit{{ $s->id_subjek }}"
+                                            onclick="return openAppModal('modalEdit{{ $s->id_subjek }}')">
                                         <i class="bi bi-pencil text-primary"></i>
                                     </button>
 
@@ -176,7 +182,7 @@
 </div>
 
 {{-- MODAL TAMBAH --}}
-<div class="modal fade" id="modalTambahSubjek" tabindex="-1">
+<div class="modal fade app-modal" id="modalTambahSubjek" tabindex="-1" data-app-modal>
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4">
 
@@ -185,7 +191,7 @@
 
                 <div class="modal-header border-0 pb-0">
                     <h5 class="fw-bold">Tambah Subjek</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-app-modal-close></button>
                 </div>
 
                 <div class="modal-body">
@@ -224,7 +230,7 @@
                 <div class="modal-footer border-0">
                     <button type="button"
                             class="btn btn-light fw-bold rounded-3"
-                            data-bs-dismiss="modal">
+                            data-app-modal-close>
                         Batal
                     </button>
 
@@ -242,7 +248,7 @@
 
 {{-- MODAL EDIT --}}
 @foreach($subjek as $s)
-<div class="modal fade" id="modalEdit{{ $s->id_subjek }}" tabindex="-1">
+<div class="modal fade app-modal" id="modalEdit{{ $s->id_subjek }}" tabindex="-1" data-app-modal>
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4">
 
@@ -254,7 +260,7 @@
 
                 <div class="modal-header border-0 pb-0">
                     <h5 class="fw-bold">Edit Subjek</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-app-modal-close></button>
                 </div>
 
                 <div class="modal-body">
@@ -304,7 +310,7 @@
                 <div class="modal-footer border-0">
                     <button type="button"
                             class="btn btn-light rounded-3 fw-bold"
-                            data-bs-dismiss="modal">
+                            data-app-modal-close>
                         Batal
                     </button>
 
@@ -322,7 +328,97 @@
 @endforeach
 
 <script>
+let appModalBackdrop = null;
+
+function ensureAppModalBackdrop() {
+    if (!appModalBackdrop) {
+        appModalBackdrop = document.createElement('div');
+        appModalBackdrop.className = 'modal-backdrop fade';
+        appModalBackdrop.addEventListener('click', function () {
+            document.querySelectorAll('[data-app-modal].is-open').forEach(function (modal) {
+                closeAppModal(modal.id);
+            });
+        });
+    }
+
+    if (!document.body.contains(appModalBackdrop)) {
+        document.body.appendChild(appModalBackdrop);
+    }
+}
+
+function openAppModal(modalId) {
+    const modalElement = document.getElementById(modalId);
+
+    if (!modalElement) {
+        return false;
+    }
+
+    ensureAppModalBackdrop();
+    modalElement.style.display = 'block';
+    modalElement.classList.add('show', 'is-open');
+    modalElement.removeAttribute('aria-hidden');
+    modalElement.setAttribute('aria-modal', 'true');
+    document.body.classList.add('modal-open');
+
+    setTimeout(function () {
+        if (appModalBackdrop) {
+            appModalBackdrop.classList.add('show');
+        }
+    }, 10);
+
+    return false;
+}
+
+function closeAppModal(modalId) {
+    const modalElement = document.getElementById(modalId);
+
+    if (!modalElement) {
+        return false;
+    }
+
+    modalElement.classList.remove('show', 'is-open');
+    modalElement.style.display = 'none';
+    modalElement.setAttribute('aria-hidden', 'true');
+    modalElement.removeAttribute('aria-modal');
+
+    if (!document.querySelector('[data-app-modal].is-open')) {
+        document.body.classList.remove('modal-open');
+
+        if (appModalBackdrop) {
+            appModalBackdrop.classList.remove('show');
+            appModalBackdrop.remove();
+        }
+    }
+
+    return false;
+}
+
 document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('[data-app-modal-close]').forEach(button => {
+        button.addEventListener('click', function () {
+            const modal = this.closest('[data-app-modal]');
+
+            if (modal) {
+                closeAppModal(modal.id);
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-app-modal]').forEach(modal => {
+        modal.addEventListener('click', function (event) {
+            if (event.target === modal) {
+                closeAppModal(modal.id);
+            }
+        });
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            document.querySelectorAll('[data-app-modal].is-open').forEach(function (modal) {
+                closeAppModal(modal.id);
+            });
+        }
+    });
 
     const alertElement = document.getElementById('alert-berhasil');
 

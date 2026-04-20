@@ -2,14 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Monitoring;
+use App\Models\Evaluasi;
 use App\Models\Sop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
-class MonitoringController extends Controller
+class EvaluasiController extends Controller
 {
+    private const KRITERIA = [
+        'Mampu mendorong peningkatan kinerja',
+        'Mudah dipahami',
+        'Mudah dilaksanakan',
+        'Semua orang dapat menjalankan perannya masing-masing',
+        'Mampu mengatasi permasalahan yang berkaitan dengan proses',
+        'Mampu menjawab kebutuhan peningkatan kinerja organisasi',
+    ];
+
     private function routePrefix(): string
     {
         return strtolower((string) Auth::user()?->role ?: 'admin');
@@ -66,9 +75,9 @@ class MonitoringController extends Controller
         return $this->visibleSopQuery()->pluck('id_sop')->map(fn ($id) => (int) $id)->all();
     }
 
-    private function findVisibleMonitoringOrFail(int $id): Monitoring
+    private function findVisibleEvaluasiOrFail(int $id): Evaluasi
     {
-        $query = Monitoring::query()->where('id_monitoring', $id);
+        $query = Evaluasi::query()->where('id_evaluasi', $id);
         $this->applyRoleScope($query);
 
         return $query->firstOrFail();
@@ -76,66 +85,80 @@ class MonitoringController extends Controller
 
     public function index()
     {
-        $monitorings = Monitoring::with(['sop', 'user'])
-            ->orderBy('id_monitoring', 'desc');
+        $evaluasis = Evaluasi::with(['sop', 'user'])
+            ->orderBy('id_evaluasi', 'desc');
 
-        $this->applyRoleScope($monitorings);
+        $this->applyRoleScope($evaluasis);
 
-        $monitorings = $monitorings
+        $evaluasis = $evaluasis
             ->get();
 
-        return view('pages.monitoring.index', compact('monitorings'));
+        return view('pages.evaluasi.index', [
+            'evaluasis' => $evaluasis,
+            'kriteriaOptions' => self::KRITERIA,
+        ]);
     }
 
     public function create()
     {
         $sops = $this->visibleSopQuery()->get();
 
-        return view('pages.monitoring.create', compact('sops'));
+        return view('pages.evaluasi.create', [
+            'sops' => $sops,
+            'kriteriaOptions' => self::KRITERIA,
+        ]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'id_sop' => ['required', Rule::in($this->visibleSopIds())],
-            'kriteria_penilaian' => 'required|in:Berjalan dengan baik,Tidak berjalan dengan baik',
-            'hasil_monitoring' => 'required',
+            'kriteria_evaluasi' => 'required|array|min:1',
+            'kriteria_evaluasi.*' => 'required|string|in:' . implode(',', self::KRITERIA),
+            'hasil_evaluasi' => 'required|string',
+            'catatan' => 'nullable|string',
+        ], [
+            'kriteria_evaluasi.required' => 'Pilih minimal satu kriteria evaluasi.',
+            'kriteria_evaluasi.min' => 'Pilih minimal satu kriteria evaluasi.',
+            'hasil_evaluasi.required' => 'Hasil evaluasi wajib diisi.',
         ]);
 
-        Monitoring::create([
+        Evaluasi::create([
             'id_sop' => $request->id_sop,
             'id_user' => Auth::id(),
             'tanggal' => now(),
-            'kriteria_penilaian' => $request->kriteria_penilaian,
-            'hasil_monitoring' => $request->hasil_monitoring,
+            'kriteria_evaluasi' => array_values($request->kriteria_evaluasi),
+            'hasil_evaluasi' => $request->hasil_evaluasi,
             'catatan' => $request->catatan,
         ]);
 
         $prefix = $this->routePrefix();
 
-        return redirect()->route($prefix . '.monitoring.index')->with('success', 'Data Monitoring berhasil disimpan!');
+        return redirect()
+            ->route($prefix . '.evaluasi.index')
+            ->with('success', 'Data evaluasi berhasil disimpan!');
     }
 
     public function destroy($id)
     {
-        $monitoring = $this->findVisibleMonitoringOrFail((int) $id);
-        $monitoring->delete();
+        $evaluasi = $this->findVisibleEvaluasiOrFail((int) $id);
+        $evaluasi->delete();
 
-        return redirect()->back()->with('success', 'Data Monitoring berhasil dihapus!');
+        return redirect()->back()->with('success', 'Data evaluasi berhasil dihapus!');
     }
 
     public function show($id)
     {
-        return redirect()->route($this->routePrefix() . '.monitoring.index');
+        return redirect()->route($this->routePrefix() . '.evaluasi.index');
     }
 
     public function edit($id)
     {
-        return redirect()->route($this->routePrefix() . '.monitoring.index');
+        return redirect()->route($this->routePrefix() . '.evaluasi.index');
     }
 
     public function update(Request $request, $id)
     {
-        return redirect()->route($this->routePrefix() . '.monitoring.index');
+        return redirect()->route($this->routePrefix() . '.evaluasi.index');
     }
 }

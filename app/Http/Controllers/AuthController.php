@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -17,12 +18,21 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        $credential = (string) ($request->input('username') ?: $request->input('email'));
+
+        $request->merge(['username' => $credential]);
+
         $request->validate([
             'username' => 'required',
             'password' => 'required',
         ]);
 
-        $user = User::where('username', $request->username)->first();
+        $user = User::query()
+            ->where('username', $credential)
+            ->when(Schema::hasColumn('tb_user', 'email'), function ($query) use ($credential) {
+                $query->orWhere('email', $credential);
+            })
+            ->first();
 
         if ($user && ($user->password === $request->password || Hash::check($request->password, $user->password))) {
             Auth::login($user);

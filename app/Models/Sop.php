@@ -40,6 +40,16 @@ class Sop extends Model
         return $this->belongsTo(Subjek::class, 'id_subjek', 'id_subjek');
     }
 
+    public function monitorings()
+    {
+        return $this->hasMany(Monitoring::class, 'id_sop', 'id_sop');
+    }
+
+    public function evaluasis()
+    {
+        return $this->hasMany(Evaluasi::class, 'id_sop', 'id_sop');
+    }
+
     public function getStatusAttribute(): ?string
     {
         return $this->attributes['status'] ?? null;

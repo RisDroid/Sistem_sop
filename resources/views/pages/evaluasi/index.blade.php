@@ -7,13 +7,13 @@
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
-            <h4 class="fw-bold mb-1">Monitoring SOP</h4>
-            <p class="text-muted mb-0">Catat hasil monitoring untuk dokumen SOP aktif.</p>
+            <h4 class="fw-bold mb-1">Evaluasi SOP</h4>
+            <p class="text-muted mb-0">Catat hasil evaluasi SOP aktif berdasarkan kriteria penilaian.</p>
         </div>
 
         @if($canManage)
-            <a href="{{ route($prefix . '.monitoring.create') }}" class="btn btn-primary px-4 fw-bold">
-                <i class="bi bi-plus-lg me-2"></i>Tambah Monitoring
+            <a href="{{ route($prefix . '.evaluasi.create') }}" class="btn btn-primary px-4 fw-bold">
+                <i class="bi bi-plus-lg me-2"></i>Tambah Evaluasi
             </a>
         @else
             <span class="badge bg-light text-dark border px-3 py-2">Mode baca untuk viewer</span>
@@ -38,16 +38,22 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($monitorings as $monitoring)
+                    @forelse($evaluasis as $evaluasi)
                         <tr>
-                            <td class="px-4">{{ \Illuminate\Support\Carbon::parse($monitoring->tanggal)->format('d M Y H:i') }}</td>
-                            <td>{{ $monitoring->sop->nama_sop ?? '-' }}</td>
-                            <td>{{ $monitoring->user->nama ?? '-' }}</td>
-                            <td>{{ $monitoring->kriteria_penilaian }}</td>
-                            <td>{{ $monitoring->hasil_monitoring }}</td>
+                            <td class="px-4">{{ \Illuminate\Support\Carbon::parse($evaluasi->tanggal)->format('d M Y H:i') }}</td>
+                            <td>{{ $evaluasi->sop->nama_sop ?? '-' }}</td>
+                            <td>{{ $evaluasi->user->nama ?? '-' }}</td>
+                            <td style="min-width: 300px;">
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach(($evaluasi->kriteria_evaluasi ?? []) as $item)
+                                        <span class="badge bg-success-subtle text-success border">{{ $item }}</span>
+                                    @endforeach
+                                </div>
+                            </td>
+                            <td>{{ $evaluasi->hasil_evaluasi }}</td>
                             <td class="text-center">
                                 @if($canManage)
-                                    <form method="POST" action="{{ route($prefix . '.monitoring.destroy', $monitoring->id_monitoring) }}">
+                                    <form method="POST" action="{{ route($prefix . '.evaluasi.destroy', $evaluasi->id_evaluasi) }}">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-outline-danger">Hapus</button>
@@ -59,7 +65,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">Belum ada data monitoring.</td>
+                            <td colspan="6" class="text-center py-5 text-muted">Belum ada data evaluasi.</td>
                         </tr>
                     @endforelse
                 </tbody>

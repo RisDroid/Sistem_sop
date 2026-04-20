@@ -34,11 +34,13 @@ class UserController extends Controller
             'username' => 'required|unique:tb_user,username',
             'nip' => 'required|unique:tb_user,nip',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:admin,operator,viewer',
-            'id_timkerja' => 'nullable|required_unless:role,admin|exists:tb_timkerja,id_timkerja',
+            'role' => 'nullable|in:admin,operator,viewer',
+            'id_timkerja' => 'nullable|required_if:role,operator|exists:tb_timkerja,id_timkerja',
         ]);
 
-        if ($validated['role'] === 'admin') {
+        $validated['role'] = $validated['role'] ?? 'viewer';
+
+        if (in_array($validated['role'], ['admin', 'viewer'], true)) {
             $validated['id_timkerja'] = null;
         }
 
@@ -64,10 +66,10 @@ class UserController extends Controller
             'nip' => 'required|unique:tb_user,nip,' . $id . ',id_user',
             'password' => 'nullable|string|min:6',
             'role' => 'required|in:admin,operator,viewer',
-            'id_timkerja' => 'nullable|required_unless:role,admin|exists:tb_timkerja,id_timkerja',
+            'id_timkerja' => 'nullable|required_if:role,operator|exists:tb_timkerja,id_timkerja',
         ]);
 
-        if ($validated['role'] === 'admin') {
+        if (in_array($validated['role'], ['admin', 'viewer'], true)) {
             $validated['id_timkerja'] = null;
         }
 
