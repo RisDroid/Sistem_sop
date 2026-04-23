@@ -179,24 +179,22 @@
                     </a>
                 </li>
 
-                @if($role !== 'viewer')
-                    <div class="menu-label">Repositori</div>
-                    <li class="{{ request()->routeIs($role . '.sop.*') ? 'active' : '' }}">
-                        <a href="{{ route($role . '.sop.index') }}">
-                            <i class="bi bi-file-earmark-text"></i> <span>Data SOP</span>
-                        </a>
-                    </li>
-                    <li class="{{ request()->routeIs($role . '.monitoring.*') ? 'active' : '' }}">
-                        <a href="{{ route($role . '.monitoring.index') }}">
-                            <i class="bi bi-graph-up"></i> <span>Monitoring</span>
-                        </a>
-                    </li>
-                    <li class="{{ request()->routeIs($role . '.evaluasi.*') ? 'active' : '' }}">
-                        <a href="{{ route($role . '.evaluasi.index') }}">
-                            <i class="bi bi-ui-checks-grid"></i> <span>Evaluasi</span>
-                        </a>
-                    </li>
-                @endif
+                <div class="menu-label">Repositori</div>
+                <li class="{{ request()->routeIs($role . '.sop.*') ? 'active' : '' }}">
+                    <a href="{{ route($role . '.sop.index') }}">
+                        <i class="bi bi-file-earmark-text"></i> <span>Data SOP</span>
+                    </a>
+                </li>
+                <li class="{{ request()->routeIs($role . '.monitoring.*') ? 'active' : '' }}">
+                    <a href="{{ route($role . '.monitoring.index') }}">
+                        <i class="bi bi-graph-up"></i> <span>Monitoring</span>
+                    </a>
+                </li>
+                <li class="{{ request()->routeIs($role . '.evaluasi.*') ? 'active' : '' }}">
+                    <a href="{{ route($role . '.evaluasi.index') }}">
+                        <i class="bi bi-ui-checks-grid"></i> <span>Evaluasi</span>
+                    </a>
+                </li>
 
                 @if($role === 'admin')
                     <div class="menu-label">Sistem</div>
@@ -213,6 +211,16 @@
                     <li class="{{ request()->routeIs('admin.subjek.*') ? 'active' : '' }}">
                         <a href="{{ route('admin.subjek.index') }}">
                             <i class="bi bi-tag"></i> <span>Manajemen Subjek</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->routeIs('admin.activity-log.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.activity-log.index') }}">
+                            <i class="bi bi-clock-history"></i> <span>Log Aktivitas</span>
+                        </a>
+                    </li>
+                    <li class="{{ request()->routeIs('admin.login-log.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.login-log.index') }}">
+                            <i class="bi bi-box-arrow-in-right"></i> <span>Log Login</span>
                         </a>
                     </li>
                 @endif

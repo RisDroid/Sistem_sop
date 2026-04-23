@@ -7,9 +7,15 @@ use App\Models\Sop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Support\ActivityLogger;
 
 class MonitoringController extends Controller
 {
+    private const TINDAKAN = [
+        'Tidak Perlu Revisi',
+        'Perlu Revisi',
+    ];
+
     private function routePrefix(): string
     {
         return strtolower((string) Auth::user()?->role ?: 'admin');
@@ -22,12 +28,28 @@ class MonitoringController extends Controller
 
     private function isScopedRole(): bool
     {
-        return $this->routePrefix() === 'operator';
+        return in_array($this->routePrefix(), ['operator', 'viewer'], true);
+    }
+
+    private function shouldScopeToCurrentTeam(): bool
+    {
+        if (!$this->isScopedRole()) {
+            return false;
+        }
+
+        $role = $this->routePrefix();
+        $teamId = $this->currentTeamId();
+
+        if ($role === 'viewer' && !$teamId) {
+            return false;
+        }
+
+        return true;
     }
 
     private function applyRoleScope($query)
     {
-        if (!$this->isScopedRole()) {
+        if (!$this->shouldScopeToCurrentTeam()) {
             return $query;
         }
 
@@ -46,7 +68,7 @@ class MonitoringController extends Controller
     {
         $query = Sop::query()->where('status', 'aktif')->orderBy('nama_sop');
 
-        if (!$this->isScopedRole()) {
+        if (!$this->shouldScopeToCurrentTeam()) {
             return $query;
         }
 
@@ -76,7 +98,7 @@ class MonitoringController extends Controller
 
     public function index()
     {
-        $monitorings = Monitoring::with(['sop', 'user'])
+        $monitorings = Monitoring::with(['sop.subjek.timkerja', 'user'])
             ->orderBy('id_monitoring', 'desc');
 
         $this->applyRoleScope($monitorings);
@@ -90,8 +112,13 @@ class MonitoringController extends Controller
     public function create()
     {
         $sops = $this->visibleSopQuery()->get();
+        $currentTimkerja = Auth::user()?->timkerja?->nama_timkerja;
 
-        return view('pages.monitoring.create', compact('sops'));
+        return view('pages.monitoring.create', [
+            'sops' => $sops,
+            'tindakanOptions' => self::TINDAKAN,
+            'currentTimkerja' => $currentTimkerja,
+        ]);
     }
 
     public function store(Request $request)
@@ -99,17 +126,29 @@ class MonitoringController extends Controller
         $request->validate([
             'id_sop' => ['required', Rule::in($this->visibleSopIds())],
             'kriteria_penilaian' => 'required|in:Berjalan dengan baik,Tidak berjalan dengan baik',
-            'hasil_monitoring' => 'required',
+            'hasil_monitoring' => 'required|string',
+            'tindakan_yang_harus_diambil' => 'required|string|in:' . implode(',', self::TINDAKAN),
         ]);
 
-        Monitoring::create([
+        $monitoring = Monitoring::create([
             'id_sop' => $request->id_sop,
             'id_user' => Auth::id(),
             'tanggal' => now(),
             'kriteria_penilaian' => $request->kriteria_penilaian,
             'hasil_monitoring' => $request->hasil_monitoring,
-            'catatan' => $request->catatan,
+            'tindakan_yang_harus_diambil' => $request->tindakan_yang_harus_diambil,
+            'catatan' => null,
         ]);
+
+        ActivityLogger::log(
+            'Monitoring',
+            'create',
+            'Menambahkan data monitoring untuk SOP.',
+            'Monitoring',
+            $monitoring->id_monitoring,
+            ['id_sop' => $monitoring->id_sop, 'tindakan' => $monitoring->tindakan_yang_harus_diambil],
+            $request
+        );
 
         $prefix = $this->routePrefix();
 
@@ -119,7 +158,18 @@ class MonitoringController extends Controller
     public function destroy($id)
     {
         $monitoring = $this->findVisibleMonitoringOrFail((int) $id);
+        $idMonitoring = $monitoring->id_monitoring;
+        $idSop = $monitoring->id_sop;
         $monitoring->delete();
+
+        ActivityLogger::log(
+            'Monitoring',
+            'delete',
+            'Menghapus data monitoring.',
+            'Monitoring',
+            $idMonitoring,
+            ['id_sop' => $idSop]
+        );
 
         return redirect()->back()->with('success', 'Data Monitoring berhasil dihapus!');
     }

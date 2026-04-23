@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('tb_notifikasi')) {
+            return;
+        }
+
         Schema::create('tb_notifikasi', function (Blueprint $table) {
             $table->id(); // ID Notifikasi
 

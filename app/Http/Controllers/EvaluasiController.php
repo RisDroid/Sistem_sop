@@ -7,6 +7,7 @@ use App\Models\Sop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Support\ActivityLogger;
 
 class EvaluasiController extends Controller
 {
@@ -31,12 +32,28 @@ class EvaluasiController extends Controller
 
     private function isScopedRole(): bool
     {
-        return $this->routePrefix() === 'operator';
+        return in_array($this->routePrefix(), ['operator', 'viewer'], true);
+    }
+
+    private function shouldScopeToCurrentTeam(): bool
+    {
+        if (!$this->isScopedRole()) {
+            return false;
+        }
+
+        $role = $this->routePrefix();
+        $teamId = $this->currentTeamId();
+
+        if ($role === 'viewer' && !$teamId) {
+            return false;
+        }
+
+        return true;
     }
 
     private function applyRoleScope($query)
     {
-        if (!$this->isScopedRole()) {
+        if (!$this->shouldScopeToCurrentTeam()) {
             return $query;
         }
 
@@ -53,9 +70,12 @@ class EvaluasiController extends Controller
 
     private function visibleSopQuery()
     {
-        $query = Sop::query()->where('status', 'aktif')->orderBy('nama_sop');
+        $query = Sop::query()
+            ->where('status', 'aktif')
+            ->whereHas('monitorings')
+            ->orderBy('nama_sop');
 
-        if (!$this->isScopedRole()) {
+        if (!$this->shouldScopeToCurrentTeam()) {
             return $query;
         }
 
@@ -85,7 +105,7 @@ class EvaluasiController extends Controller
 
     public function index()
     {
-        $evaluasis = Evaluasi::with(['sop', 'user'])
+        $evaluasis = Evaluasi::with(['sop.subjek.timkerja', 'user'])
             ->orderBy('id_evaluasi', 'desc');
 
         $this->applyRoleScope($evaluasis);
@@ -102,10 +122,12 @@ class EvaluasiController extends Controller
     public function create()
     {
         $sops = $this->visibleSopQuery()->get();
+        $currentTimkerja = Auth::user()?->timkerja?->nama_timkerja;
 
         return view('pages.evaluasi.create', [
             'sops' => $sops,
             'kriteriaOptions' => self::KRITERIA,
+            'currentTimkerja' => $currentTimkerja,
         ]);
     }
 
@@ -115,22 +137,29 @@ class EvaluasiController extends Controller
             'id_sop' => ['required', Rule::in($this->visibleSopIds())],
             'kriteria_evaluasi' => 'required|array|min:1',
             'kriteria_evaluasi.*' => 'required|string|in:' . implode(',', self::KRITERIA),
-            'hasil_evaluasi' => 'required|string',
-            'catatan' => 'nullable|string',
         ], [
             'kriteria_evaluasi.required' => 'Pilih minimal satu kriteria evaluasi.',
             'kriteria_evaluasi.min' => 'Pilih minimal satu kriteria evaluasi.',
-            'hasil_evaluasi.required' => 'Hasil evaluasi wajib diisi.',
         ]);
 
-        Evaluasi::create([
+        $evaluasi = Evaluasi::create([
             'id_sop' => $request->id_sop,
             'id_user' => Auth::id(),
             'tanggal' => now(),
             'kriteria_evaluasi' => array_values($request->kriteria_evaluasi),
-            'hasil_evaluasi' => $request->hasil_evaluasi,
-            'catatan' => $request->catatan,
+            'hasil_evaluasi' => 'Evaluasi tersimpan berdasarkan kriteria penilaian.',
+            'catatan' => null,
         ]);
+
+        ActivityLogger::log(
+            'Evaluasi',
+            'create',
+            'Menambahkan data evaluasi untuk SOP.',
+            'Evaluasi',
+            $evaluasi->id_evaluasi,
+            ['id_sop' => $evaluasi->id_sop, 'jumlah_kriteria' => count($evaluasi->kriteria_evaluasi ?? [])],
+            $request
+        );
 
         $prefix = $this->routePrefix();
 
@@ -142,7 +171,18 @@ class EvaluasiController extends Controller
     public function destroy($id)
     {
         $evaluasi = $this->findVisibleEvaluasiOrFail((int) $id);
+        $idEvaluasi = $evaluasi->id_evaluasi;
+        $idSop = $evaluasi->id_sop;
         $evaluasi->delete();
+
+        ActivityLogger::log(
+            'Evaluasi',
+            'delete',
+            'Menghapus data evaluasi.',
+            'Evaluasi',
+            $idEvaluasi,
+            ['id_sop' => $idSop]
+        );
 
         return redirect()->back()->with('success', 'Data evaluasi berhasil dihapus!');
     }

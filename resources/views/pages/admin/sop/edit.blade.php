@@ -1,6 +1,20 @@
 @extends('layouts.sidebarmenu')
 
 @section('content')
+@php($prefix = strtolower(Auth::user()->role) === 'admin' ? 'admin' : 'operator')
+@php($selectedSubjek = $subjek->firstWhere('id_subjek', (int) old('id_subjek', $sop->id_subjek)))
+@php($selectedSubjekLabel = $selectedSubjek?->nama_subjek)
+@php($selectedTimkerjaId = $selectedSubjek?->id_timkerja)
+@php($subjekOptions = $subjek->groupBy(fn ($item) => trim((string) $item->nama_subjek))->map(function ($items, $namaSubjek) {
+    return [
+        'label' => $namaSubjek,
+        'units' => $items->map(fn ($item) => [
+            'id_subjek' => $item->id_subjek,
+            'id_timkerja' => $item->id_timkerja,
+            'nama_timkerja' => $item->timkerja->nama_timkerja ?? 'Internal',
+        ])->sortBy('nama_timkerja')->values()->all(),
+    ];
+})->sortKeys(SORT_NATURAL | SORT_FLAG_CASE))
 <div class="container-fluid py-4">
     <div class="row align-items-center mb-4">
         <div class="col">
@@ -16,7 +30,7 @@
 
     <div class="card border-0 shadow-sm" style="border-radius: 20px; background: #ffffff;">
         <div class="card-body p-4">
-            <form action="{{ route('admin.sop.update', $sop->id_sop) }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route($prefix . '.sop.update', $sop->id_sop) }}" method="POST" enctype="multipart/form-data" id="formSopEdit">
                 @csrf
                 @method('PUT')
 
@@ -37,21 +51,22 @@
 
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-bold small text-muted">Subjek</label>
-                        <select name="id_subjek" class="form-select" style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;" required>
-                            @foreach($subjek as $s)
-                                <option value="{{ $s->id_subjek }}" {{ $sop->id_subjek == $s->id_subjek ? 'selected' : '' }}>
-                                    {{ $s->nama_subjek }}
+                        <select id="selectedSubjekNameEdit" class="form-select" style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;" required>
+                            <option value="">Pilih subjek</option>
+                            @foreach($subjekOptions as $key => $item)
+                                <option value="{{ $key }}" {{ $selectedSubjekLabel === $key ? 'selected' : '' }}>
+                                    {{ $item['label'] }}
                                 </option>
                             @endforeach
                         </select>
+                        <input type="hidden" name="id_subjek" id="selectedSubjekIdEdit" value="{{ old('id_subjek', $sop->id_subjek) }}">
                     </div>
 
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-bold small text-muted">Tim Kerja</label>
-                        <input type="text" class="form-control bg-light"
-                               value="{{ $sop->subjek->timkerja->nama_timkerja ?? 'Mengikuti subjek' }}"
-                               style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;"
-                               readonly>
+                        <select id="selectedTimkerjaIdEdit" class="form-select" style="border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;" required>
+                            <option value="">Pilih tim kerja</option>
+                        </select>
                     </div>
 
                     <div class="col-md-6 mb-3">
@@ -95,4 +110,57 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const subjekMap = @json($subjekOptions);
+    const subjekNameSelect = document.getElementById('selectedSubjekNameEdit');
+    const timkerjaSelect = document.getElementById('selectedTimkerjaIdEdit');
+    const subjekIdInput = document.getElementById('selectedSubjekIdEdit');
+    const initialTimkerjaId = @json($selectedTimkerjaId);
+    const form = document.getElementById('formSopEdit');
+
+    function syncSubjekId() {
+        const selectedOption = timkerjaSelect.options[timkerjaSelect.selectedIndex];
+        subjekIdInput.value = selectedOption ? (selectedOption.dataset.idSubjek || '') : '';
+    }
+
+    function renderTimkerjaOptions(selectedTimkerjaId = '') {
+        const selectedSubjekName = subjekNameSelect.value;
+        const options = (subjekMap[selectedSubjekName] && subjekMap[selectedSubjekName].units) ? subjekMap[selectedSubjekName].units : [];
+
+        timkerjaSelect.innerHTML = '<option value="">Pilih tim kerja</option>';
+
+        options.forEach((item) => {
+            const option = document.createElement('option');
+            option.value = item.id_timkerja;
+            option.dataset.idSubjek = item.id_subjek;
+            option.textContent = item.nama_timkerja;
+
+            if (String(selectedTimkerjaId) === String(item.id_timkerja)) {
+                option.selected = true;
+            }
+
+            timkerjaSelect.appendChild(option);
+        });
+
+        syncSubjekId();
+    }
+
+    subjekNameSelect.addEventListener('change', function () {
+        renderTimkerjaOptions('');
+    });
+
+    timkerjaSelect.addEventListener('change', syncSubjekId);
+
+    renderTimkerjaOptions(initialTimkerjaId);
+
+    form.addEventListener('submit', function (event) {
+        if (!subjekNameSelect.value || !timkerjaSelect.value || !subjekIdInput.value) {
+            event.preventDefault();
+            alert('Pilih subjek dan tim kerja yang sesuai terlebih dahulu.');
+        }
+    });
+});
+</script>
 @endsection

@@ -31,9 +31,10 @@
                     <tr>
                         <th class="px-4">Tanggal</th>
                         <th>SOP</th>
-                        <th>Petugas</th>
+                        <th>Tim Kerja</th>
                         <th>Kriteria</th>
-                        <th>Hasil</th>
+                        <th>Catatan Hasil</th>
+                        <th>Tindakan</th>
                         <th class="text-center">{{ $canManage ? 'Aksi' : 'Status' }}</th>
                     </tr>
                 </thead>
@@ -42,9 +43,14 @@
                         <tr>
                             <td class="px-4">{{ \Illuminate\Support\Carbon::parse($monitoring->tanggal)->format('d M Y H:i') }}</td>
                             <td>{{ $monitoring->sop->nama_sop ?? '-' }}</td>
-                            <td>{{ $monitoring->user->nama ?? '-' }}</td>
+                            <td>{{ $monitoring->sop->subjek->timkerja->nama_timkerja ?? 'Internal' }}</td>
                             <td>{{ $monitoring->kriteria_penilaian }}</td>
                             <td>{{ $monitoring->hasil_monitoring }}</td>
+                            <td>
+                                <span class="badge {{ ($monitoring->tindakan_yang_harus_diambil ?? '') === 'Perlu Revisi' ? 'bg-warning-subtle text-warning border border-warning-subtle' : 'bg-light text-dark border' }}">
+                                    {{ $monitoring->tindakan_yang_harus_diambil ?? '-' }}
+                                </span>
+                            </td>
                             <td class="text-center">
                                 @if($canManage)
                                     <form method="POST" action="{{ route($prefix . '.monitoring.destroy', $monitoring->id_monitoring) }}">
@@ -59,7 +65,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">Belum ada data monitoring.</td>
+                            <td colspan="7" class="text-center py-5 text-muted">Belum ada data monitoring.</td>
                         </tr>
                     @endforelse
                 </tbody>

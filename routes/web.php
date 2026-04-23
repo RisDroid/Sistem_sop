@@ -18,6 +18,8 @@ use App\Http\Controllers\EvaluasiController;
 
 // PERBAIKAN DI SINI: Sesuaikan dengan lokasi folder Admin
 use App\Http\Controllers\Admin\HomeController;
+use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\LoginLogController;
 
 // Controller Master Data di folder Admin
 use App\Http\Controllers\Admin\TimkerjaController;
@@ -70,6 +72,8 @@ Route::middleware(['auth'])->group(function () {
         // Master Data
         Route::resource('timkerja', TimkerjaController::class); // ✅ FIX DI SINI
         Route::resource('subjek', SubjekController::class);
+        Route::get('/activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
+        Route::get('/login-log', [LoginLogController::class, 'index'])->name('login-log.index');
 
         // Management User & Monitoring
         Route::resource('user', UserController::class);
@@ -83,6 +87,9 @@ Route::middleware(['auth'])->group(function () {
 
         // --- MANAJEMEN SOP ---
         Route::get('/sop/akses-cepat', [SopController::class, 'aksesCepat'])->name('sop.aksescepat');
+        Route::post('/sop/akses-cepat', [SopController::class, 'storeAksesCepat'])->name('sop.aksescepat.store');
+        Route::get('/sop/bulk-create', [SopController::class, 'bulkCreate'])->name('sop.bulkCreate');
+        Route::post('/sop/bulk-store', [SopController::class, 'bulkStore'])->name('sop.bulkStore');
         Route::get('/sop/{id}/history', [SopController::class, 'history'])->name('sop.history');
         Route::post('/sop/revisi', [SopController::class, 'storeRevisi'])->name('sop.revisi');
 
@@ -100,6 +107,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('operator')->name('operator.')->group(function () {
         Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
         Route::get('/sop/akses-cepat', [SopController::class, 'aksesCepat'])->name('sop.aksescepat');
+        Route::post('/sop/akses-cepat', [SopController::class, 'storeAksesCepat'])->name('sop.aksescepat.store');
         Route::get('/sop/{id}/history', [SopController::class, 'history'])->name('sop.history');
         Route::post('/sop/revisi', [SopController::class, 'storeRevisi'])->name('sop.revisi');
         Route::resource('sop', SopController::class);
@@ -117,6 +125,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
         Route::get('/sop', [SopController::class, 'index'])->name('sop.index');
         Route::get('/sop/akses-cepat', [SopController::class, 'aksesCepat'])->name('sop.aksescepat');
+        Route::get('/laporan-tahunan', [SopController::class, 'laporanTahunan'])->name('laporan.tahunan');
         Route::get('/sop/{id}/history', [SopController::class, 'history'])->name('sop.history');
         Route::get('/monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
         Route::get('/evaluasi', [EvaluasiController::class, 'index'])->name('evaluasi.index');

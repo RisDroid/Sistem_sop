@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('tb_sop') || !Schema::hasColumn('tb_sop', 'revisi_ke')) {
+            return;
+        }
+
         Schema::table('tb_sop', function (Blueprint $table) {
             /**
              * Mengubah tipe data revisi_ke dari Integer menjadi String (Varchar).
@@ -26,6 +30,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!Schema::hasTable('tb_sop') || !Schema::hasColumn('tb_sop', 'revisi_ke')) {
+            return;
+        }
+
         Schema::table('tb_sop', function (Blueprint $table) {
             /**
              * Kembalikan ke tipe data Integer jika migration di-rollback.

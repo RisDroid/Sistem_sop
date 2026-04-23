@@ -31,9 +31,8 @@
                     <tr>
                         <th class="px-4">Tanggal</th>
                         <th>SOP</th>
-                        <th>Petugas</th>
+                        <th>Tim Kerja</th>
                         <th>Kriteria</th>
-                        <th>Hasil</th>
                         <th class="text-center">{{ $canManage ? 'Aksi' : 'Status' }}</th>
                     </tr>
                 </thead>
@@ -42,7 +41,7 @@
                         <tr>
                             <td class="px-4">{{ \Illuminate\Support\Carbon::parse($evaluasi->tanggal)->format('d M Y H:i') }}</td>
                             <td>{{ $evaluasi->sop->nama_sop ?? '-' }}</td>
-                            <td>{{ $evaluasi->user->nama ?? '-' }}</td>
+                            <td>{{ $evaluasi->sop->subjek->timkerja->nama_timkerja ?? 'Internal' }}</td>
                             <td style="min-width: 300px;">
                                 <div class="d-flex flex-wrap gap-2">
                                     @foreach(($evaluasi->kriteria_evaluasi ?? []) as $item)
@@ -50,7 +49,6 @@
                                     @endforeach
                                 </div>
                             </td>
-                            <td>{{ $evaluasi->hasil_evaluasi }}</td>
                             <td class="text-center">
                                 @if($canManage)
                                     <form method="POST" action="{{ route($prefix . '.evaluasi.destroy', $evaluasi->id_evaluasi) }}">
@@ -65,7 +63,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">Belum ada data evaluasi.</td>
+                            <td colspan="5" class="text-center py-5 text-muted">Belum ada data evaluasi.</td>
                         </tr>
                     @endforelse
                 </tbody>

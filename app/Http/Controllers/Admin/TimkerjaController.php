@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Timkerja;
+use App\Support\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 class TimkerjaController extends Controller
@@ -29,13 +30,23 @@ class TimkerjaController extends Controller
             'nama_timkerja' => 'required|unique:tb_timkerja,nama_timkerja',
         ]);
 
-        Timkerja::create([
+        $timkerja = Timkerja::create([
             'nama_timkerja' => $request->nama_timkerja,
             'deskripsi'     => $request->deskripsi,
             'status'        => 'aktif',
             'created_by'    => Auth::id(),
             'created_date'  => now(),
         ]);
+
+        ActivityLogger::log(
+            'Tim Kerja',
+            'create',
+            'Menambahkan tim kerja: ' . $timkerja->nama_timkerja,
+            'Timkerja',
+            $timkerja->id_timkerja,
+            [],
+            $request
+        );
 
         return redirect()
             ->route('admin.timkerja.index')
@@ -62,6 +73,16 @@ class TimkerjaController extends Controller
             'modified_date' => now(),
         ]);
 
+        ActivityLogger::log(
+            'Tim Kerja',
+            'update',
+            'Memperbarui tim kerja: ' . $timkerja->nama_timkerja,
+            'Timkerja',
+            $timkerja->id_timkerja,
+            ['status' => $timkerja->status],
+            $request
+        );
+
         return back()->with('success', 'Tim Kerja berhasil diperbarui!');
     }
 
@@ -80,7 +101,18 @@ class TimkerjaController extends Controller
             return back()->with('error', 'Tim Kerja masih digunakan data subjek!');
         }
 
+        $nama = $data->nama_timkerja;
         $data->delete();
+
+        ActivityLogger::log(
+            'Tim Kerja',
+            'delete',
+            'Menghapus tim kerja: ' . $nama,
+            'Timkerja',
+            $id,
+            [],
+            $request
+        );
 
         return back()->with('success', 'Tim Kerja berhasil dihapus!');
     }

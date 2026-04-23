@@ -9,6 +9,33 @@
 .app-modal.is-open {
     display:block;
 }
+.team-picker {
+    border: 1px solid #dee2e6;
+    border-radius: 16px;
+    background: #fff;
+    padding: 12px;
+}
+.team-picker-search {
+    border-radius: 12px;
+}
+.team-picker-list {
+    max-height: 220px;
+    overflow-y: auto;
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+}
+.team-picker-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px 12px;
+    transition: .2s ease;
+    background: #fff;
+}
+.team-picker-item.is-selected {
+    border-color: #0d6efd;
+    background: #eff6ff;
+}
 </style>
 <div class="container-fluid px-4 py-4">
 
@@ -206,14 +233,29 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Tim Kerja</label>
-                        <select name="id_timkerja" class="form-select rounded-3" required>
-                            <option value="">-- Pilih Tim Kerja --</option>
-                            @foreach($timkerja as $t)
-                                <option value="{{ $t->id_timkerja }}">
-                                    {{ $t->nama_timkerja }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <div class="team-picker">
+                            <input type="text"
+                                   class="form-control team-picker-search"
+                                   placeholder="Cari tim kerja..."
+                                   data-team-search="create">
+                            <div class="team-picker-list" data-team-list="create">
+                                @foreach($timkerja as $t)
+                                    <label class="team-picker-item" data-team-item>
+                                        <div class="form-check m-0">
+                                            <input class="form-check-input team-picker-checkbox"
+                                                   type="checkbox"
+                                                   name="id_timkerja[]"
+                                                   value="{{ $t->id_timkerja }}"
+                                                   id="createTim{{ $t->id_timkerja }}">
+                                            <label class="form-check-label fw-semibold w-100" for="createTim{{ $t->id_timkerja }}">
+                                                {{ $t->nama_timkerja }}
+                                            </label>
+                                        </div>
+                                    </label>
+                                @endforeach
+                            </div>
+                            <small class="text-muted d-block mt-2">Bisa pilih lebih dari satu tim kerja.</small>
+                        </div>
                     </div>
 
 
@@ -330,6 +372,31 @@
 <script>
 let appModalBackdrop = null;
 
+function initTeamPicker(searchSelector, listSelector) {
+    const searchInput = document.querySelector(searchSelector);
+    const list = document.querySelector(listSelector);
+
+    if (!searchInput || !list) {
+        return;
+    }
+
+    searchInput.addEventListener('input', function () {
+        const keyword = this.value.trim().toLowerCase();
+
+        list.querySelectorAll('[data-team-item]').forEach(function (item) {
+            const label = item.textContent.trim().toLowerCase();
+            item.style.display = label.includes(keyword) ? '' : 'none';
+        });
+    });
+
+    list.querySelectorAll('.team-picker-checkbox').forEach(function (checkbox) {
+        checkbox.addEventListener('change', function () {
+            const item = this.closest('[data-team-item]');
+            item?.classList.toggle('is-selected', this.checked);
+        });
+    });
+}
+
 function ensureAppModalBackdrop() {
     if (!appModalBackdrop) {
         appModalBackdrop = document.createElement('div');
@@ -394,6 +461,8 @@ function closeAppModal(modalId) {
 }
 
 document.addEventListener('DOMContentLoaded', function(){
+    initTeamPicker('[data-team-search="create"]', '[data-team-list="create"]');
+
     document.querySelectorAll('[data-app-modal-close]').forEach(button => {
         button.addEventListener('click', function () {
             const modal = this.closest('[data-app-modal]');

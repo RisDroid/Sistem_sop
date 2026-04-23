@@ -27,7 +27,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
             <h4 class="fw-bold mb-1">Tambah Monitoring SOP</h4>
-            <p class="text-muted mb-0">Isi form monitoring secara terpisah seperti alur tambah SOP.</p>
+            <p class="text-muted mb-0">Isi monitoring dengan hasil penilaian dan tindakan yang harus diambil untuk SOP aktif.</p>
         </div>
 
         <a href="{{ route($prefix . '.monitoring.index') }}" class="btn btn-outline-secondary px-4 fw-bold">
@@ -45,6 +45,15 @@
         <div class="card-body p-4 p-lg-5">
             <form method="POST" action="{{ route($prefix . '.monitoring.store') }}" id="monitoringForm">
                 @csrf
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Tim Kerja</label>
+                    <input type="text"
+                           class="form-control"
+                           value="{{ $currentTimkerja ?: 'Belum ada tim kerja pada akun ini' }}"
+                           readonly>
+                    <small class="text-muted">Tim kerja mengikuti akun operator yang sedang login.</small>
+                </div>
 
                 <div class="mb-4">
                     <label class="form-label fw-semibold">SOP</label>
@@ -90,13 +99,20 @@
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label fw-semibold">Hasil Monitoring</label>
+                    <label class="form-label fw-semibold">Catatan Hasil Penilaian</label>
                     <textarea name="hasil_monitoring" class="form-control" rows="4" required>{{ old('hasil_monitoring') }}</textarea>
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label fw-semibold">Catatan</label>
-                    <textarea name="catatan" class="form-control" rows="3">{{ old('catatan') }}</textarea>
+                    <label class="form-label fw-semibold">Tindakan yang Harus Diambil</label>
+                    <select name="tindakan_yang_harus_diambil" class="form-select" required>
+                        <option value="">Pilih tindakan</option>
+                        @foreach($tindakanOptions as $tindakan)
+                            <option value="{{ $tindakan }}" {{ old('tindakan_yang_harus_diambil') === $tindakan ? 'selected' : '' }}>
+                                {{ $tindakan }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <button type="submit" class="btn btn-primary px-4 fw-bold">

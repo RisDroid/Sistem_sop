@@ -44,6 +44,40 @@
                         </div>
 
                         <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary small">TIM KERJA</label>
+                            <div class="team-picker">
+                                <input type="text"
+                                       class="form-control team-picker-search"
+                                       placeholder="Cari tim kerja..."
+                                       data-team-search="create-page">
+                                <div class="team-picker-list" data-team-list="create-page">
+                                    @foreach($timkerja ?? [] as $t)
+                                        <label class="team-picker-item" data-team-item>
+                                            <div class="form-check m-0">
+                                                <input class="form-check-input team-picker-checkbox"
+                                                       type="checkbox"
+                                                       name="id_timkerja[]"
+                                                       value="{{ $t->id_timkerja }}"
+                                                       id="pageTim{{ $t->id_timkerja }}"
+                                                       {{ in_array($t->id_timkerja, old('id_timkerja', [])) ? 'checked' : '' }}>
+                                                <label class="form-check-label fw-semibold w-100" for="pageTim{{ $t->id_timkerja }}">
+                                                    {{ $t->nama_timkerja }}
+                                                </label>
+                                            </div>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                <small class="text-muted d-block mt-2">Bisa pilih lebih dari satu tim kerja.</small>
+                            </div>
+                            @error('id_timkerja')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                            @error('id_timkerja.*')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-4">
                             <label class="form-label fw-bold text-secondary small d-block">STATUS LAYANAN</label>
                             <div class="form-check form-check-inline mt-2">
                                 <input class="form-check-input" type="radio" name="status" id="statusAktif" value="aktif" checked>
@@ -115,5 +149,59 @@
     .form-control-lg {
         font-size: 1rem;
     }
+    .team-picker {
+        border: 1px solid #dee2e6;
+        border-radius: 16px;
+        background: #fff;
+        padding: 12px;
+    }
+    .team-picker-search {
+        border-radius: 12px;
+    }
+    .team-picker-list {
+        max-height: 220px;
+        overflow-y: auto;
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    .team-picker-item {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 10px 12px;
+        transition: .2s ease;
+        background: #fff;
+    }
+    .team-picker-item.is-selected {
+        border-color: #0d6efd;
+        background: #eff6ff;
+    }
 </style>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.querySelector('[data-team-search="create-page"]');
+        const list = document.querySelector('[data-team-list="create-page"]');
+
+        if (!searchInput || !list) {
+            return;
+        }
+
+        list.querySelectorAll('.team-picker-checkbox').forEach(function (checkbox) {
+            checkbox.closest('[data-team-item]')?.classList.toggle('is-selected', checkbox.checked);
+
+            checkbox.addEventListener('change', function () {
+                checkbox.closest('[data-team-item]')?.classList.toggle('is-selected', checkbox.checked);
+            });
+        });
+
+        searchInput.addEventListener('input', function () {
+            const keyword = this.value.trim().toLowerCase();
+
+            list.querySelectorAll('[data-team-item]').forEach(function (item) {
+                const label = item.textContent.trim().toLowerCase();
+                item.style.display = label.includes(keyword) ? '' : 'none';
+            });
+        });
+    });
+</script>
 @endsection

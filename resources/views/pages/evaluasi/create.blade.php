@@ -53,7 +53,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
             <h4 class="fw-bold mb-1">Tambah Evaluasi SOP</h4>
-            <p class="text-muted mb-0">Isi evaluasi SOP dengan memilih satu atau lebih kriteria penilaian.</p>
+            <p class="text-muted mb-0">Evaluasi hanya dapat dibuat untuk SOP yang sudah dimonitoring dan fokus pada checklist kriteria penilaian.</p>
         </div>
 
         <a href="{{ route($prefix . '.evaluasi.index') }}" class="btn btn-outline-secondary px-4 fw-bold">
@@ -71,6 +71,15 @@
         <div class="card-body p-4 p-lg-5">
             <form method="POST" action="{{ route($prefix . '.evaluasi.store') }}" id="evaluasiForm">
                 @csrf
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Tim Kerja</label>
+                    <input type="text"
+                           class="form-control"
+                           value="{{ $currentTimkerja ?: 'Belum ada tim kerja pada akun ini' }}"
+                           readonly>
+                    <small class="text-muted">Tim kerja mengikuti akun operator yang sedang login.</small>
+                </div>
 
                 <div class="mb-4">
                     <label class="form-label fw-semibold">SOP</label>
@@ -107,16 +116,6 @@
                             @endforeach
                         </div>
                     </div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">Hasil Evaluasi</label>
-                    <textarea name="hasil_evaluasi" class="form-control" rows="4" required>{{ old('hasil_evaluasi') }}</textarea>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">Catatan</label>
-                    <textarea name="catatan" class="form-control" rows="3">{{ old('catatan') }}</textarea>
                 </div>
 
                 <button type="submit" class="btn btn-primary px-4 fw-bold">

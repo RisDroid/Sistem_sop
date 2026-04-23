@@ -45,9 +45,24 @@ class Sop extends Model
         return $this->hasMany(Monitoring::class, 'id_sop', 'id_sop');
     }
 
+    public function latestMonitoring()
+    {
+        return $this->hasOne(Monitoring::class, 'id_sop', 'id_sop')->latestOfMany('tanggal');
+    }
+
     public function evaluasis()
     {
         return $this->hasMany(Evaluasi::class, 'id_sop', 'id_sop');
+    }
+
+    public function latestEvaluasi()
+    {
+        return $this->hasOne(Evaluasi::class, 'id_sop', 'id_sop')->latestOfMany('tanggal');
+    }
+
+    public function revisionAttachments()
+    {
+        return $this->hasMany(SopRevisionAttachment::class, 'id_sop', 'id_sop');
     }
 
     public function getStatusAttribute(): ?string

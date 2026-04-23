@@ -264,9 +264,17 @@
                 </a>
             @endif
 
-            <a href="{{ route($prefix . '.sop.aksescepat') }}" class="btn btn-warning px-4 py-2 fw-bold shadow-sm text-white" style="border-radius: 12px; background: #f59e0b; border: none;">
-                <i class="bi bi-lightning-charge me-2"></i> Akses Cepat
-            </a>
+            @if($canBulkDelete)
+                <a href="{{ route('admin.sop.bulkCreate') }}" class="btn btn-success px-4 py-2 fw-bold shadow-sm" style="border-radius: 12px; background: #0f766e; border: none;">
+                    <i class="bi bi-collection me-2"></i> Tambah SOP Banyak
+                </a>
+            @endif
+
+            @if($canManage)
+                <a href="{{ route($prefix . '.sop.aksescepat') }}" class="btn btn-warning px-4 py-2 fw-bold shadow-sm text-white" style="border-radius: 12px; background: #f59e0b; border: none;">
+                    <i class="bi bi-diagram-3 me-2"></i> Revisi Gabungan
+                </a>
+            @endif
         </div>
     </div>
 
@@ -393,11 +401,13 @@
                                 <td class="text-end">
                                     <div class="d-flex justify-content-end gap-1">
                                         @if($canManage && $item->status === 'aktif')
-                                            <button type="button" class="btn-action text-warning btn-revisi"
+                                            <button type="button" class="btn-action text-warning btn-revisi {{ $item->can_revise ? '' : 'opacity-50' }}"
                                                     data-id="{{ $item->id_sop }}"
                                                     data-nama="{{ $item->nama_sop }}"
                                                     data-revisi="{{ $item->revisi_ke }}"
-                                                    title="Revisi SOP Ini">
+                                                    data-can-revise="{{ $item->can_revise ? '1' : '0' }}"
+                                                    data-revision-message="{{ $item->revision_message }}"
+                                                    title="{{ $item->revision_message }}">
                                                 <i class="bi bi-arrow-repeat"></i>
                                             </button>
                                         @endif
@@ -541,6 +551,11 @@
                     </div>
                 </div>
 
+                <div class="history-panel mb-4">
+                    <div class="fw-bold mb-2">Deskripsi Revisi Terbaru</div>
+                    <div class="text-muted small" id="historyLatestDescription">Belum ada deskripsi revisi.</div>
+                </div>
+
                 <div class="history-panel">
                     <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
                         <div>
@@ -556,7 +571,11 @@
                             </a>
                         </div>
                     </div>
-                    <div class="text-muted small" id="historyRevisionDescription">Pilih salah satu revisi terdahulu dari dropdown untuk melihat file SOP sebelumnya.</div>
+                    <div class="history-stat">
+                        <div class="text-muted small">Deskripsi Revisi Dipilih</div>
+                        <div class="fw-bold mt-1" id="historyRevisionTitle">-</div>
+                        <div class="text-muted small mt-2" id="historyRevisionDescription">Pilih salah satu revisi terdahulu dari dropdown untuk melihat file SOP sebelumnya.</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -572,7 +591,7 @@
                     <h5 class="fw-bold mb-0">Input Revisi SOP Baru</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form action="{{ route($prefix . '.sop.revisi') }}" method="POST" enctype="multipart/form-data">
+                <form id="formRevisiSop" action="{{ route($prefix . '.sop.revisi') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="modal-body px-4 py-4">
                         <div class="mb-3">
@@ -592,63 +611,7 @@
                     </div>
                     <div class="modal-footer border-0 pb-4 px-4 gap-2">
                         <button type="button" class="btn btn-light fw-bold py-2 flex-grow-1" style="border-radius: 12px;" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-warning fw-bold py-2 flex-grow-1 text-white" style="background: #f59e0b; border-radius: 12px;">Simpan Revisi</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    {{-- MODAL REVISI SOP BARU (HEADER) --}}
-    <div class="modal fade" id="modalRevisiBaru" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content shadow-lg" style="border-radius: 20px;">
-                <div class="modal-header border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0">Form Revisi SOP</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="{{ route($prefix . '.sop.revisi') }}" method="POST" enctype="multipart/form-data">
-                    @csrf
-                    <div class="modal-body px-4 py-3">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label small fw-bold">Nama SOP Baru</label>
-                                <input type="text" name="nama_sop" class="form-control" placeholder="Masukkan nama SOP baru" required style="border-radius: 10px;">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label small fw-bold">Nomor SOP</label>
-                                <input type="text" name="nomor_sop" class="form-control" placeholder="Nomor/BPS/2026" required style="border-radius: 10px;">
-                            </div>
-
-                            <div class="col-12 mb-3">
-                                <label class="form-label small fw-bold">SOP Terkait (Bisa pilih lebih dari 1)</label>
-                                <div id="selected-sop-list" class="mb-2"></div>
-                                <div class="input-group">
-                                    <select id="sop-selector" class="form-select" style="border-radius: 10px 0 0 10px;">
-                                        <option value="">-- Pilih SOP Terkait --</option>
-                                        @foreach($allSop as $sop)
-                                            <option value="{{ $sop->id_sop }}">{{ $sop->nama_sop }}</option>
-                                        @endforeach
-                                    </select>
-                                    <button class="btn btn-outline-primary" id="add-sop-btn" type="button" style="border-radius: 0 10px 10px 0;">
-                                        <i class="bi bi-plus-circle"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="col-12 mb-3">
-                                <label class="form-label small fw-bold">Upload File PDF</label>
-                                <input type="file" name="link_sop" class="form-control" accept=".pdf" required style="border-radius: 10px;">
-                            </div>
-                            <div class="col-12 mb-0">
-                                <label class="form-label small fw-bold">Keterangan</label>
-                                <textarea name="keterangan" class="form-control" rows="3" placeholder="Tambahkan catatan revisi..." style="border-radius: 10px;"></textarea>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-0 pb-4 px-4">
-                        <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal" style="border-radius: 12px;">Batal</button>
-                        <button type="submit" class="btn btn-warning fw-bold px-4 text-white" style="border-radius: 12px; background: #f59e0b;">Simpan</button>
+                        <button type="submit" class="btn btn-warning fw-bold py-2 flex-grow-1 text-white" id="btnSubmitRevisiSop" style="background: #f59e0b; border-radius: 12px;">Simpan Revisi</button>
                     </div>
                 </form>
             </div>
@@ -762,9 +725,11 @@
             $('#historyLatestSubjek').text('-');
             $('#historyLatestTimkerja').text('-');
             $('#historyLatestYear').text('-');
+            $('#historyLatestDescription').text('Belum ada deskripsi revisi.');
             $('#historyLatestView').attr('href', '#');
             historyRevisionSelect.html('<option value="">Memuat revisi...</option>');
             setHistoryViewButton(null);
+            $('#historyRevisionTitle').text('-');
             $('#historyRevisionDescription').text('Memuat rincian revisi SOP...');
 
             sopHistoryModal.show();
@@ -781,11 +746,13 @@
                 $('#historyLatestSubjek').text(latest?.subjek ?? '-');
                 $('#historyLatestTimkerja').text(latest?.timkerja ?? '-');
                 $('#historyLatestYear').text(latest?.tahun ?? '-');
+                $('#historyLatestDescription').text(latest?.keterangan ?? 'Belum ada deskripsi revisi.');
                 $('#historyLatestView').attr('href', latest?.view_url ?? '#');
 
                 if (oldRevisions.length === 0) {
                     historyRevisionSelect.html('<option value="">Belum ada revisi terdahulu</option>');
                     setHistoryViewButton(null);
+                    $('#historyRevisionTitle').text('-');
                     $('#historyRevisionDescription').text('SOP ini belum memiliki revisi terdahulu yang bisa ditampilkan.');
                     return;
                 }
@@ -793,16 +760,18 @@
                 const options = oldRevisions.map((item) => {
                     const label = `${item.revisi_label} • ${item.status_label}`;
                     const url = item.view_url ?? '';
-                    const desc = item.keterangan ? `Keterangan: ${item.keterangan}` : `Nomor SOP: ${item.nomor_sop}`;
-                    return `<option value="${url}" data-description="${$('<div>').text(desc).html()}">${label}</option>`;
+                    const desc = item.keterangan ? item.keterangan : `Nomor SOP: ${item.nomor_sop}`;
+                    return `<option value="${url}" data-title="${$('<div>').text(item.revisi_label ?? '-').html()}" data-description="${$('<div>').text(desc).html()}">${label}</option>`;
                 });
 
                 historyRevisionSelect.html(`<option value="">Pilih revisi terdahulu</option>${options.join('')}`);
                 setHistoryViewButton(null);
+                $('#historyRevisionTitle').text('-');
                 $('#historyRevisionDescription').text('Pilih salah satu revisi terdahulu dari dropdown untuk melihat file SOP sebelumnya.');
             }).fail(function () {
                 historyRevisionSelect.html('<option value="">Gagal memuat revisi</option>');
                 setHistoryViewButton(null);
+                $('#historyRevisionTitle').text('-');
                 $('#historyRevisionDescription').text('Rincian SOP gagal dimuat. Coba lagi.');
             });
         });
@@ -810,15 +779,30 @@
         historyRevisionSelect.on('change', function () {
             const selected = $(this).find('option:selected');
             const url = $(this).val();
+            const title = selected.data('title');
             const description = selected.data('description');
 
             setHistoryViewButton(url || null);
+            $('#historyRevisionTitle').text(title || '-');
             $('#historyRevisionDescription').text(description || 'Pilih salah satu revisi terdahulu dari dropdown untuk melihat file SOP sebelumnya.');
         });
 
         @if($canManage)
             // Trigger Modal Revisi Cepat
             $('.btn-revisi').on('click', function() {
+                const canRevisi = $(this).data('can-revise') == 1;
+                const revisionMessage = $(this).data('revision-message');
+
+                if (!canRevisi) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Revisi belum bisa dilakukan',
+                        text: revisionMessage || 'SOP ini belum memenuhi syarat revisi.',
+                        confirmButtonColor: '#f59e0b'
+                    });
+                    return;
+                }
+
                 let id = $(this).data('id');
                 let nama = $(this).data('nama');
                 let rev = $(this).data('revisi');
@@ -828,46 +812,27 @@
                 $('#modalRevisi').modal('show');
             });
 
-            // LOGIKA DINAMIS SOP TERKAIT
-            $('#add-sop-btn').on('click', function() {
-                let selector = $('#sop-selector');
-                let id = selector.val();
-                let name = selector.find('option:selected').text();
+            $('#formRevisiSop').on('submit', function(e) {
+                const form = $(this);
+                const submitButton = $('#btnSubmitRevisiSop');
 
-                if (id === "") {
-                    Swal.fire({ icon: 'warning', title: 'Pilih SOP', text: 'Silakan pilih SOP dari daftar terlebih dahulu.' });
+                if (form.data('isSubmitting')) {
+                    e.preventDefault();
                     return;
                 }
 
-                let existing = false;
-                $("input[name='sop_terkait[]']").each(function() {
-                    if ($(this).val() === id) existing = true;
-                });
-
-                if (existing) {
-                    Swal.fire({ icon: 'error', title: 'Sudah Ada', text: 'SOP ini sudah ditambahkan.' });
-                    return;
-                }
-
-                let newRow = `
-                    <div class="locked-sop-row animate__animated animate__fadeIn">
-                        <input type="hidden" name="sop_terkait[]" value="${id}">
-                        <div class="d-flex align-items-center text-dark fw-bold">
-                            <i class="bi bi-file-earmark-check text-primary me-2"></i>
-                            <span>${name}</span>
-                        </div>
-                        <button type="button" class="btn btn-link text-danger p-0 remove-sop-item">
-                            <i class="bi bi-x-circle-fill"></i>
-                        </button>
-                    </div>
-                `;
-
-                $('#selected-sop-list').append(newRow);
-                selector.val('');
+                form.data('isSubmitting', true);
+                submitButton.prop('disabled', true).text('Menyimpan...');
             });
 
-            $(document).on('click', '.remove-sop-item', function() {
-                $(this).closest('.locked-sop-row').fadeOut(300, function() { $(this).remove(); });
+            $('#modalRevisi').on('hidden.bs.modal', function() {
+                const form = $('#formRevisiSop');
+                form[0].reset();
+                form.removeData('isSubmitting');
+                $('#btnSubmitRevisiSop').prop('disabled', false).text('Simpan Revisi');
+                $('#revisi_id_sop').val('');
+                $('#revisi_nama_sop').val('');
+                $('#revisi_info_ke').text('');
             });
         @endif
 

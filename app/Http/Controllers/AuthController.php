@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use App\Support\LoginLogger;
 
 class AuthController extends Controller
 {
@@ -39,7 +40,7 @@ class AuthController extends Controller
 
             $request->session()->regenerate();
 
-            $role = Str::lower($user->role);
+            LoginLogger::log('login', $user, $request, ['username' => $user->username]);
 
             return redirect()->intended('/dashboard');
         }
@@ -51,6 +52,12 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        $user = Auth::user();
+
+        if ($user) {
+            LoginLogger::log('logout', $user, $request, ['username' => $user->username]);
+        }
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

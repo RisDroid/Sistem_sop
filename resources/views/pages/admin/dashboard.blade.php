@@ -114,6 +114,17 @@
         font-weight: 700;
         margin-top: 10px;
     }
+    .pending-card {
+        border: 1px solid #fed7aa;
+        background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+        border-radius: 24px;
+    }
+    .pending-item {
+        border: 1px solid #fde68a;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 14px 16px;
+    }
 </style>
 
 <div class="container-fluid fade-in-up py-4">
@@ -137,32 +148,24 @@
     </div>
 
     <div class="row g-4 mb-5">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card card-stat bg-gradient-blue shadow">
                 <i class="bi bi-file-earmark-text stat-icon"></i>
                 <div class="fw-bold opacity-75 small">TOTAL DOKUMEN</div>
                 <h1 class="fw-extrabold mb-0">{{ $totalSop }}</h1>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card card-stat bg-gradient-green shadow">
-                <i class="bi bi-shield-check stat-icon"></i>
-                <div class="fw-bold opacity-75 small">SOP AKTIF</div>
-                <h1 class="fw-extrabold mb-0">{{ $aman ?? 0 }}</h1>
-            </div>
-            
-        </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card card-stat bg-gradient-orange shadow">
                 <i class="bi bi-clipboard2-data stat-icon"></i>
-                <div class="fw-bold opacity-75 small">MONITORING</div>
+                <div class="fw-bold opacity-75 small">SUDAH MONITORING</div>
                 <h1 class="fw-extrabold mb-0">{{ $totalMonitoring ?? 0 }}</h1>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card card-stat bg-gradient-red shadow">
                 <i class="bi bi-ui-checks-grid stat-icon"></i>
-                <div class="fw-bold opacity-75 small">EVALUASI</div>
+                <div class="fw-bold opacity-75 small">SUDAH EVALUASI</div>
                 <h1 class="fw-extrabold mb-0">{{ $totalEvaluasi ?? 0 }}</h1>
             </div>
         </div>
@@ -184,11 +187,47 @@
         </div>
     @endif
 
+    @if(($pendingEvaluasiSops ?? collect())->isNotEmpty())
+        <div class="card pending-card shadow-sm p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1">Menunggu Evaluasi</h5>
+                    <div class="text-muted small">SOP berikut sudah dimonitoring tetapi belum dievaluasi.</div>
+                </div>
+                <span class="badge text-bg-warning px-3 py-2 rounded-pill">{{ $pendingEvaluasiSops->count() }} SOP</span>
+            </div>
+
+            <div class="row g-3">
+                @foreach($pendingEvaluasiSops as $pendingSop)
+                    <div class="col-lg-6">
+                        <div class="pending-item h-100">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div>
+                                    <div class="fw-bold text-dark">{{ $pendingSop->nama_sop }}</div>
+                                    <div class="small text-muted mt-1">
+                                        {{ $pendingSop->subjek?->nama_subjek ?? 'Tanpa Subjek' }} • {{ $pendingSop->subjek?->timkerja?->nama_timkerja ?? 'Internal' }}
+                                    </div>
+                                </div>
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Belum Evaluasi</span>
+                            </div>
+                            <div class="small text-muted mt-3">
+                                Monitoring terakhir:
+                                <span class="fw-semibold">
+                                    {{ $pendingSop->latestMonitoring?->tanggal ? \Illuminate\Support\Carbon::parse($pendingSop->latestMonitoring->tanggal)->format('d M Y H:i') : '-' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <div class="row g-4 mt-2">
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm p-4" style="border-radius: 24px;">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h6 class="fw-bold text-dark mb-0">Statistik Nama Subjek</h6>
+                    <h6 class="fw-bold text-dark mb-0">Statistik SOP Aktif per Subjek</h6>
                     <span class="badge bg-light text-dark rounded-pill">Data Terkini</span>
                 </div>
                 <div style="height: 320px;">
@@ -198,18 +237,22 @@
         </div>
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm p-4" style="border-radius: 24px;">
-                    <h6 class="fw-bold text-dark mb-4">Kesehatan Berkas</h6>
+                    <h6 class="fw-bold text-dark mb-4">Statistik Proses SOP Aktif</h6>
                     <div style="height: 220px;">
                         <canvas id="statusChart"></canvas>
                     </div>
                     <div class="mt-4 pt-3 border-top">
                     <div class="d-flex justify-content-between small text-muted mb-2">
-                        <span>SOP revisi:</span>
-                        <span class="fw-bold">{{ $review ?? 0 }}</span>
+                        <span>SOP belum monitoring:</span>
+                        <span class="fw-bold">{{ $belumMonitoring ?? 0 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between small text-muted mb-2">
+                        <span>SOP sudah monitoring:</span>
+                        <span class="fw-bold">{{ $totalMonitoring ?? 0 }}</span>
                     </div>
                     <div class="d-flex justify-content-between small text-muted">
-                        <span>SOP nonaktif/kadaluarsa:</span>
-                        <span class="fw-bold">{{ $kritis ?? 0 }}</span>
+                        <span>SOP sudah evaluasi:</span>
+                        <span class="fw-bold">{{ $totalEvaluasi ?? 0 }}</span>
                     </div>
                 </div>
             </div>
@@ -220,10 +263,11 @@
 <script>
     // Real-time Clock Header
     function updateClock() {
-        const now = new Date();
-        const options = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-        document.getElementById('realtime-clock').textContent = now.toLocaleTimeString('id-ID', options);
+        const options = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' };
+        document.getElementById('realtime-clock').textContent = serverNow.toLocaleTimeString('id-ID', options);
+        serverNow = new Date(serverNow.getTime() + 1000);
     }
+    let serverNow = new Date(@json(now('Asia/Bangkok')->format('Y-m-d\TH:i:sP')));
     setInterval(updateClock, 1000);
     updateClock();
 
@@ -252,7 +296,7 @@
         data: {
             labels: subjekLabels,
             datasets: [{
-                label: 'Jumlah SOP',
+                label: 'Jumlah SOP Aktif',
                 data: subjekCounts,
                 backgroundColor: generateColors(subjekLabels.length), // Menggunakan fungsi warna
                 borderRadius: 10,
@@ -268,7 +312,7 @@
                     enabled: true,
                     callbacks: {
                         label: function(context) {
-                            return ' ' + context.raw + ' Dokumen';
+                            return ' ' + context.raw + ' SOP Aktif';
                         }
                     }
                 }
@@ -288,10 +332,10 @@
     new Chart(document.getElementById('statusChart'), {
         type: 'doughnut',
         data: {
-            labels: ['Aktif', 'Revisi', 'Nonaktif/Kadaluarsa'],
+            labels: ['Belum Monitoring', 'Sudah Monitoring, Belum Evaluasi', 'Sudah Evaluasi'],
             datasets: [{
-                data: [{{ $aman ?? 0 }}, {{ $review ?? 0 }}, {{ $kritis ?? 0 }}],
-                backgroundColor: ['#11998e', '#f2994a', '#eb3349'],
+                data: [{{ $belumMonitoring ?? 0 }}, {{ $monitoringBelumEvaluasi ?? 0 }}, {{ $sudahEvaluasi ?? 0 }}],
+                backgroundColor: ['#eb3349', '#f2994a', '#11998e'],
                 borderWidth: 0,
                 hoverOffset: 10
             }]

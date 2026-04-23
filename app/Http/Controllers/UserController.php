@@ -7,6 +7,7 @@ use App\Models\Timkerja;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Support\ActivityLogger;
 
 class UserController extends Controller
 {
@@ -44,7 +45,7 @@ class UserController extends Controller
             $validated['id_timkerja'] = null;
         }
 
-        User::create([
+        $user = User::create([
             'nama' => $validated['nama'],
             'username' => $validated['username'],
             'nip' => $validated['nip'],
@@ -54,6 +55,16 @@ class UserController extends Controller
             'created_date' => now(),
             'created_by' => Auth::id(),
         ]);
+
+        ActivityLogger::log(
+            'User',
+            'create',
+            'Menambahkan user baru: ' . $user->nama,
+            'User',
+            $user->id,
+            ['role' => $user->role, 'timkerja' => $user->id_timkerja],
+            $request
+        );
 
         return back()->with('success', 'User berhasil ditambahkan');
     }
@@ -91,12 +102,35 @@ class UserController extends Controller
 
         $user->update($data);
 
+        ActivityLogger::log(
+            'User',
+            'update',
+            'Memperbarui user: ' . $user->nama,
+            'User',
+            $user->id,
+            ['role' => $user->role, 'timkerja' => $user->id_timkerja],
+            $request
+        );
+
         return back()->with('success', 'User berhasil diupdate');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        User::findOrFail($id)->delete();
+        $user = User::findOrFail($id);
+        $nama = $user->nama;
+
+        $user->delete();
+
+        ActivityLogger::log(
+            'User',
+            'delete',
+            'Menghapus user: ' . $nama,
+            'User',
+            $id,
+            [],
+            $request
+        );
 
         return back()->with('success', 'User berhasil dihapus');
     }

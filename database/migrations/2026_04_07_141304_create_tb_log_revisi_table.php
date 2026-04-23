@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('tb_log_revisi')) {
+            return;
+        }
+
         Schema::create('tb_log_revisi', function (Blueprint $table) {
             $table->id(); // ID Primary Key Log
 

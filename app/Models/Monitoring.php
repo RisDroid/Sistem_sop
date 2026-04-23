@@ -22,6 +22,7 @@ class Monitoring extends Model
         'id_user',
         'kriteria_penilaian',
         'hasil_monitoring',
+        'tindakan_yang_harus_diambil',
         'catatan'
     ];
 

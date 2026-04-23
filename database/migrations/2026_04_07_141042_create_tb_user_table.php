@@ -6,6 +6,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
+        if (Schema::hasTable('tb_user')) {
+            return;
+        }
+
         Schema::create('tb_user', function (Blueprint $table) {
             $table->integer('id_user')->autoIncrement();
             $table->string('email', 255)->nullable()->unique();

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Subjek;
 use App\Models\Timkerja;
+use App\Support\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -49,20 +50,36 @@ class SubjekController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'id_timkerja' => 'required|exists:tb_timkerja,id_timkerja',
+            'id_timkerja' => 'required|array|min:1',
+            'id_timkerja.*' => 'required|exists:tb_timkerja,id_timkerja',
             'nama_subjek' => 'required|string|max:150',
         ]);
-        Subjek::create([
-            'id_timkerja'  => $request->id_timkerja,
-            'nama_subjek'  => $request->nama_subjek,
-            'deskripsi'    => $request->deskripsi,
-            'status'       => 'aktif',
-            'created_by'   => Auth::id(),
-            'created_date' => now(),
-        ]);
+
+        DB::transaction(function () use ($request) {
+            foreach (array_unique($request->id_timkerja) as $idTimkerja) {
+                $subjek = Subjek::create([
+                    'id_timkerja'  => $idTimkerja,
+                    'nama_subjek'  => $request->nama_subjek,
+                    'deskripsi'    => $request->deskripsi,
+                    'status'       => $request->status ?? 'aktif',
+                    'created_by'   => Auth::id(),
+                    'created_date' => now(),
+                ]);
+
+                ActivityLogger::log(
+                    'Subjek',
+                    'create',
+                    'Menambahkan subjek: ' . $subjek->nama_subjek,
+                    'Subjek',
+                    $subjek->id_subjek,
+                    ['timkerja' => $subjek->id_timkerja],
+                    $request
+                );
+            }
+        });
 
         return redirect()->route('admin.subjek.index')
-            ->with('success', 'Subjek berhasil ditambahkan!');
+            ->with('success', 'Subjek berhasil ditambahkan ke tim kerja yang dipilih!');
     }
 
     /**
@@ -87,6 +104,16 @@ class SubjekController extends Controller
             'modified_date' => now(),
         ]);
 
+        ActivityLogger::log(
+            'Subjek',
+            'update',
+            'Memperbarui subjek: ' . $subjek->nama_subjek,
+            'Subjek',
+            $subjek->id_subjek,
+            ['timkerja' => $subjek->id_timkerja, 'status' => $subjek->status],
+            $request
+        );
+
         return redirect()->back()
             ->with('success', 'Subjek berhasil diperbarui!');
     }
@@ -107,7 +134,18 @@ class SubjekController extends Controller
             return back()->with('error', 'Subjek masih dipakai data SOP!');
         }
 
+        $nama = $data->nama_subjek;
         $data->delete();
+
+        ActivityLogger::log(
+            'Subjek',
+            'delete',
+            'Menghapus subjek: ' . $nama,
+            'Subjek',
+            $id,
+            [],
+            $request
+        );
 
         return back()->with('success', 'Subjek berhasil dihapus!');
     }

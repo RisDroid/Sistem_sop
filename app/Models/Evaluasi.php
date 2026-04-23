@@ -22,6 +22,7 @@ class Evaluasi extends Model
         'tanggal',
         'kriteria_evaluasi',
         'hasil_evaluasi',
+        'tindakan_yang_harus_diambil',
         'catatan',
     ];
 
